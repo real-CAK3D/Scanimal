@@ -59,7 +59,7 @@ import kotlinx.coroutines.delay
 enum class Screen(val title: String, val icon: String) {
     HOME("Home", "🏠"), SCAN("Feed", "📷"), RADAR("Radar", "📡"), CHAT("Chat", "💬"), MORE("More", "☰"),
     FRIENDS("Friends", "🐾"), DEVICES("Devices", "🗃️"), SPECTRUM("Spectrum", "🌈"),
-    QUESTS("Quests", "🎯"), ALBUM("Album", "📔"), MAP("Map", "📍"), HUD("HUD", "🖥️"), NERD("Nerd panel", "🤓"),
+    QUESTS("Quests", "🎯"), ALBUM("Album", "📔"), MAP("Map", "📍"), HUD("HUD", "🖥️"), NERD("Nerd panel", "🤓"), NOTABLE("Notable finds", "🕵️"),
     SKY("Sky", "🛰️"), GAMES("Games", "🎮"), SHOP("Shop", "🛍️"), AWARDS("Awards", "🏆"), PROFILE("Profile", "🪪"),
     JOURNAL("Journal", "📜"), LAB("Sensor Lab", "🧪"), SETTINGS("Settings", "⚙️"),
 }
@@ -139,6 +139,7 @@ fun ScanimalRoot(repo: GameRepository, hub: SensorHub, hasNfc: Boolean) {
                 Screen.MAP -> MapScreen(repo)
                 Screen.HUD -> HudScreen(repo, hub)
                 Screen.NERD -> NerdScreen(repo, hub)
+                Screen.NOTABLE -> NotableScreen(repo)
                 Screen.FRIENDS -> FriendsScreen(repo, hub, go = { screen = it })
                 Screen.DEVICES -> DevicesScreen(repo, hub)
                 Screen.SPECTRUM -> SpectrumScreen(repo, hub)
@@ -178,11 +179,11 @@ fun ScanimalRoot(repo: GameRepository, hub: SensorHub, hasNfc: Boolean) {
 
 @Composable
 fun MoreScreen(go: (Screen) -> Unit) {
-    val items = listOf(Screen.QUESTS, Screen.ALBUM, Screen.FRIENDS, Screen.DEVICES, Screen.MAP, Screen.SPECTRUM, Screen.HUD, Screen.SKY, Screen.GAMES, Screen.SHOP, Screen.AWARDS, Screen.PROFILE, Screen.JOURNAL, Screen.LAB, Screen.NERD, Screen.SETTINGS)
+    val items = listOf(Screen.QUESTS, Screen.ALBUM, Screen.FRIENDS, Screen.DEVICES, Screen.MAP, Screen.NOTABLE, Screen.SPECTRUM, Screen.HUD, Screen.SKY, Screen.GAMES, Screen.SHOP, Screen.AWARDS, Screen.PROFILE, Screen.JOURNAL, Screen.LAB, Screen.NERD, Screen.SETTINGS)
     val blurbs = mapOf(
         Screen.QUESTS to "Daily missions for rewards", Screen.ALBUM to "Collectible stickers",
         Screen.FRIENDS to "Link codes, nearby buddies, messages", Screen.DEVICES to "Every gadget you've found",
-        Screen.MAP to "Where you found signals", Screen.HUD to "Retro live status screen", Screen.NERD to "Raw sensors & dev tips",
+        Screen.MAP to "Where you found signals", Screen.NOTABLE to "Cameras, readers, mesh & LoRa", Screen.HUD to "Retro live status screen", Screen.NERD to "Raw sensors & dev tips",
         Screen.SPECTRUM to "Wi-Fi channels, audio, EMF", Screen.SKY to "GPS satellites overhead", Screen.GAMES to "Mini-games for coins", Screen.SHOP to "Items, hats & paint",
         Screen.AWARDS to "Achievements", Screen.PROFILE to "Stats & life story", Screen.JOURNAL to "Everything that happened",
         Screen.LAB to "Live phone sensors", Screen.SETTINGS to "Options & permissions",

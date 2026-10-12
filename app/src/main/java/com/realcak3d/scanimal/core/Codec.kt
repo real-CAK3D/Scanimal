@@ -59,7 +59,7 @@ object Codec {
             put("online", g.settings.onlineProductLookup); put("autoSleep", g.settings.autoSleepAtNight)
             put("background", g.settings.backgroundMode); put("discoverable", g.settings.discoverable); put("autoUpdate", g.settings.autoUpdate)
             put("metric", g.settings.metric); put("theme", g.settings.theme); put("physics", g.settings.physics)
-            put("showVisitors", g.settings.showVisitors); put("chatter", g.settings.ambientChatter); put("mapTrail", g.settings.mapTrail)
+            put("showVisitors", g.settings.showVisitors); put("chatter", g.settings.ambientChatter); put("mapTrail", g.settings.mapTrail); put("surv", g.settings.surveillanceAlerts); put("accentHue", g.settings.accentHue); put("bigText", g.settings.bigText)
         })
         o.put("lastFoodName", g.lastFoodName)
         o.put("favoriteFood", g.favoriteFood)
@@ -75,7 +75,7 @@ object Codec {
         o.put("devices", JSONArray().apply {
             g.devices.values.forEach { d ->
                 put(JSONObject().put("id", d.id).put("n", d.name).put("k", d.kind.name).put("t", d.type.name).put("f", d.firstSeen)
-                    .put("l", d.lastSeen).put("s", d.timesSeen).put("c", d.timesConnected).put("r", d.bestRssi).put("lc", d.lastConnected))
+                    .put("l", d.lastSeen).put("s", d.timesSeen).put("c", d.timesConnected).put("r", d.bestRssi).put("lc", d.lastConnected).put("v", d.vendor).put("nb", d.notable))
             }
         })
         o.put("friends", JSONArray().apply { g.friends.forEach { put(friendJson(it, withPrivate = true)) } })
@@ -145,7 +145,7 @@ object Codec {
                 it.optBoolean("online", true), it.optBoolean("autoSleep", true), it.optBoolean("background", false),
                 it.optBoolean("discoverable", true), it.optBoolean("autoUpdate", true), it.optBoolean("metric", true),
                 it.optString("theme", "radar"), it.optBoolean("physics", true), it.optBoolean("showVisitors", true),
-                it.optBoolean("chatter", true), it.optBoolean("mapTrail", true))
+                it.optBoolean("chatter", true), it.optBoolean("mapTrail", true), it.optBoolean("surv", true), it.optInt("accentHue", -1), it.optBoolean("bigText", false))
         }
         g.lastFoodName = o.optString("lastFoodName")
         g.favoriteFood = o.optString("favoriteFood")
@@ -178,7 +178,7 @@ object Codec {
             for (i in 0 until a.length()) a.optJSONObject(i)?.let { d ->
                 val kind = enumOr(d.optString("k"), SignalKind.BLE)
                 val rec = DeviceRecord(d.optString("id"), d.optString("n"), kind, enumOr(d.optString("t"), DeviceType.UNKNOWN),
-                    d.optLong("f"), d.optLong("l"), d.optInt("s", 1), d.optInt("c"), d.optInt("r", -127), d.optLong("lc"))
+                    d.optLong("f"), d.optLong("l"), d.optInt("s", 1), d.optInt("c"), d.optInt("r", -127), d.optLong("lc"), d.optString("v"), d.optBoolean("nb"))
                 g.devices["${kind.name}:${rec.id}"] = rec
             }
         }

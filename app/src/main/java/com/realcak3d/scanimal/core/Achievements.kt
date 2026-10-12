@@ -127,6 +127,13 @@ object Achievements {
         counter("run_5k", "Runner", "Run 5 km in total.", "🏃", AchCategory.EXPLORE, C.RUN_METERS, 5_000, 60),
         counter("firefly", "Firefly Friend", "Light the torch firefly 10 times.", "🪰", AchCategory.EXPLORE, C.FIREFLIES, 10, 25),
         counter("mapped_50", "Cartographer", "Pin 50 discoveries on the map.", "📍", AchCategory.EXPLORE, C.DISCOVERIES_MAPPED, 50, 40),
+        counter("surv_1", "Who's Watching?", "Spot a possible surveillance camera.", "📷", AchCategory.EXPLORE, C.SURVEILLANCE, 1, 25),
+        counter("alpr_1", "Plate Spotter", "Spot a possible license-plate reader.", "🚘", AchCategory.EXPLORE, C.ALPR, 1, 30),
+        counter("surv_25", "Counter-Surveillance", "Spot 25 cameras/readers.", "🕵️", AchCategory.EXPLORE, C.SURVEILLANCE, 25, 120, secret = true),
+        counter("mesh_1", "Off the Grid", "Find a mesh node.", "🕸️", AchCategory.EXPLORE, C.MESH, 1, 25),
+        counter("lora_1", "Long Range", "Find a LoRa node (Meshtastic).", "📡", AchCategory.EXPLORE, C.LORA, 1, 30),
+        counter("lora_10", "Mesh Network", "Find 10 LoRa/mesh nodes.", "🌐", AchCategory.EXPLORE, C.LORA, 10, 80),
+        counter("notable_50", "Field Agent", "Log 50 notable finds.", "🎖️", AchCategory.EXPLORE, C.NOTABLE, 50, 100),
     )
 
     val byId = all.associateBy { it.id }

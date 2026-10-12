@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.shape.CircleShape
 import com.realcak3d.scanimal.core.Achievements
 import com.realcak3d.scanimal.core.C
 import com.realcak3d.scanimal.core.Codec
@@ -127,6 +128,22 @@ fun SettingsScreen(repo: GameRepository, hub: SensorHub, requestPermissions: () 
                     repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
+            Spacer(Modifier.height(8.dp))
+            Text("Accent color", color = Pal.sub, fontSize = 12.sp)
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                val swatch: @Composable (Int, String) -> Unit = { hue, label ->
+                    val sel = s.accentHue == hue
+                    Box(Modifier.size(34.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(if (hue < 0) Pal.theme.mint else hsv(hue.toFloat(), 0.72f, 0.9f))
+                        .border(if (sel) 3.dp else 1.dp, if (sel) Pal.text else Pal.line, androidx.compose.foundation.shape.CircleShape)
+                        .clickable { set { accentHue = hue } }, contentAlignment = Alignment.Center) {
+                        if (hue < 0) Text("A", color = Pal.bg, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                swatch(-1, "Theme")
+                listOf(160, 190, 210, 265, 320, 345, 20, 45, 90, 120).forEach { swatch(it, "") }
+            }
+            Toggle("Big text", "Larger, chunkier UI text", s.bigText) { v -> set { bigText = v } }
             Toggle("Physics", "Shake and tilt the phone to bounce your buddy around", s.physics) { v -> set { physics = v } }
             Toggle("Show visiting friends", "Up to 5 friend buddies hang out on your home screen", s.showVisitors) { v -> set { showVisitors = v } }
             Toggle("Ambient chatter", "Your buddy talks on its own every so often", s.ambientChatter) { v -> set { ambientChatter = v } }
@@ -143,6 +160,7 @@ fun SettingsScreen(repo: GameRepository, hub: SensorHub, requestPermissions: () 
                 if (v) hub.link.start() else hub.link.stop()
             }
             Toggle("Map trail", "Pin where you find each signal (stored only on this phone)", s.mapTrail) { v -> set { mapTrail = v } }
+            Toggle("Surveillance alerts", "Buddy speaks up when it spots a likely camera or plate reader", s.surveillanceAlerts) { v -> set { surveillanceAlerts = v } }
             Toggle("Metric units", "Kilometers instead of miles", s.metric) { v -> set { metric = v } }
             Toggle("Look up product names online", "Asks Open Food Facts what a grocery barcode is", s.onlineProductLookup) { v -> set { onlineProductLookup = v } }
         }
@@ -163,6 +181,7 @@ fun SettingsScreen(repo: GameRepository, hub: SensorHub, requestPermissions: () 
             KeyValue("Devices logged", "${g.devices.size} (${g.devices.values.map { it.type }.toSet().size} kinds)")
             KeyValue("Connections", "${g.count(C.CONNECTIONS)}")
             KeyValue("Cell towers", "${g.count(C.CELLS)}")
+            KeyValue("Notable finds", "${g.count(C.NOTABLE)} (📷${g.count(C.SURVEILLANCE)} 🚘${g.count(C.ALPR)} 🕸️${g.count(C.MESH)} 📡${g.count(C.LORA)})")
             KeyValue("Wi-Fi networks", "${g.count(C.WIFI)}")
             KeyValue("Bluetooth devices", "${g.count(C.BT)}")
             KeyValue("Max satellites", "${g.count(C.SATS_MAX)}")

@@ -113,10 +113,11 @@ fun DevicesScreen(repo: GameRepository, hub: SensorHub) {
                 Text(d.type.icon, fontSize = 24.sp, modifier = Modifier.width(36.dp))
                 Column(Modifier.weight(1f)) {
                     Text(d.name.ifBlank { "(no name)" }, color = Pal.text, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
-                    Text("${d.type.label} · ${kindLabel(d.kind)} · ${d.id}", color = Pal.sub, fontSize = 10.sp, fontFamily = Mono, maxLines = 1)
+                    Text("${d.type.label}${if (d.vendor.isNotBlank()) " · ${d.vendor}" else ""} · ${kindLabel(d.kind)} · ${d.id}", color = Pal.sub, fontSize = 10.sp, fontFamily = Mono, maxLines = 1)
                     Text("Seen ${d.timesSeen}× · connected ${d.timesConnected}× · best ${d.bestRssi} dBm · last ${df.format(Date(d.lastSeen))}", color = Pal.sub, fontSize = 11.sp)
                 }
-                if (live) Chip("IN RANGE", Pal.mint)
+                if (d.notable) Chip("NOTABLE", Pal.amber)
+                else if (live) Chip("IN RANGE", Pal.mint)
             }
         }
         if (list.isEmpty()) item { Text("Nothing here yet. Keep the app open near gadgets, or turn on Background mode.", color = Pal.sub, modifier = Modifier.padding(16.dp)) }

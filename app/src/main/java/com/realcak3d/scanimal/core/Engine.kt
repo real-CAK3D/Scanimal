@@ -733,6 +733,36 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
 
     // ---------------------------------------------------------------- device catalog & connections
 
+    /** A surveillance camera, ALPR, mesh or LoRa node turned up — note it and tell the user. */
+    fun onNotableDevice(r: DeviceRecord, now: Long): List<GameEvent> {
+        val ev = mutableListOf<GameEvent>()
+        g.bump(C.NOTABLE)
+        when (r.type) {
+            DeviceType.SURVEILLANCE -> g.bump(C.SURVEILLANCE)
+            DeviceType.ALPR -> g.bump(C.ALPR)
+            DeviceType.MESH -> g.bump(C.MESH)
+            DeviceType.LORA -> g.bump(C.LORA)
+            else -> {}
+        }
+        val name = r.name.ifBlank { r.vendor.ifBlank { r.id } }
+        val line = when (r.type) {
+            DeviceType.SURVEILLANCE -> "📷 I think there's a surveillance camera nearby: '$name'. (Just a guess from its radio.)"
+            DeviceType.ALPR -> "🚘 Possible license-plate reader detected: '$name'. Eyes on the road, eyes on us!"
+            DeviceType.MESH -> "🕸️ A mesh node! '$name' talks off the grid. Cool!"
+            DeviceType.LORA -> "📡 A LoRa node: '$name'! Long-range radio friend. (I hear its Bluetooth, not the LoRa itself.)"
+            else -> "Notable device: $name"
+        }
+        val alertable = r.type == DeviceType.MESH || r.type == DeviceType.LORA || g.settings.surveillanceAlerts
+        if (b.hatched) {
+            s.smarts += 2; s.happiness += 1; s.clampAll()
+            if (alertable) ev += GameEvent.Say(line, Anim.SPARKLE)
+            ev += gainXp(12, now)
+        }
+        g.log(now, r.type.icon, "Notable find: $name (${r.type.label}${if (r.vendor.isNotBlank()) ", ${r.vendor}" else ""}).")
+        ev += checkAchievements(now)
+        return ev
+    }
+
     /** Records every signal; first sighting per device per day applies its type's effect. */
     fun recordDevices(signals: List<SignalInfo>, now: Long): List<GameEvent> {
         val ev = mutableListOf<GameEvent>()
@@ -742,13 +772,16 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
             val key = "${sig.kind.name}:${sig.id}"
             var r = g.devices[key]
             val fresh = r == null
+            val desc = DeviceClassifier.describe(sig)
             if (r == null) {
                 if (g.devices.size >= 3000) g.devices.entries.minByOrNull { it.value.lastSeen }?.let { g.devices.remove(it.key) }
-                r = DeviceRecord(sig.id, sig.name, sig.kind, DeviceClassifier.classify(sig), now, now, bestRssi = sig.rssi)
+                r = DeviceRecord(sig.id, sig.name, sig.kind, desc.type, now, now, bestRssi = sig.rssi, vendor = desc.vendor, notable = desc.notable)
                 g.devices[key] = r
                 if (g.devices.values.count { it.type == r.type } == 1) newTypes += r.type
+                if (desc.notable) ev += onNotableDevice(r, now)
             } else {
-                if (sig.name.isNotBlank() && sig.name != r.name) { r.name = sig.name; r.type = DeviceClassifier.classify(sig) }
+                if (sig.name.isNotBlank() && sig.name != r.name) { r.name = sig.name; r.type = desc.type; r.vendor = desc.vendor; r.notable = desc.notable }
+                if (r.vendor.isBlank() && desc.vendor.isNotBlank()) r.vendor = desc.vendor
                 if (now - r.lastSeen > 10 * 60_000L) r.timesSeen++
                 r.lastSeen = now
                 r.bestRssi = max(r.bestRssi, sig.rssi)
@@ -785,6 +818,8 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
             DeviceType.PRINTER -> s.fullness += 2 * m
             DeviceType.HEALTH -> s.health += 3 * m
             DeviceType.BUDDY -> { s.social += 4 * m; s.happiness += 3 * m }
+            DeviceType.SURVEILLANCE, DeviceType.ALPR, DeviceType.MESH, DeviceType.LORA, DeviceType.THREAD, DeviceType.TAG_FINDER ->
+                { s.smarts += 2 * m; b.xp += (2 * m).toInt().coerceAtLeast(1) }
         }
         return true
     }

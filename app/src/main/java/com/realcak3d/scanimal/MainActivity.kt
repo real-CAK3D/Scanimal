@@ -46,6 +46,8 @@ class MainActivity : ComponentActivity() {
             val game by repo.state.collectAsState()
             val theme = Themes.byId(game.settings.theme)
             if (Pal.theme !== theme) Pal.theme = theme
+            if (Pal.accent != game.settings.accentHue) Pal.accent = game.settings.accentHue
+            if (Pal.bigText != game.settings.bigText) Pal.bigText = game.settings.bigText
             ScanimalTheme {
                 ScanimalRoot(repo = repo, hub = hub, hasNfc = nfc != null)
             }

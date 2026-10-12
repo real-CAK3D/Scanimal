@@ -74,6 +74,12 @@ enum class DeviceType(val label: String, val icon: String, val effect: String) {
     APPLIANCE("Smart appliance", "🏠", "smart home tour: +smarts"),
     BUDDY("Scanimal", "🐾", "playdate: +social, +happiness"),
     CELL("Cell tower", "🗼", "tower spotting: +XP"),
+    SURVEILLANCE("Surveillance cam", "📷", "spotted a watcher: +XP, +smarts"),
+    ALPR("License-plate reader", "🚘", "spotted an ALPR: +XP, +smarts"),
+    MESH("Mesh node", "🕸️", "off-grid friend: +social, +XP"),
+    LORA("LoRa node", "📡", "long-range radio: +XP, +smarts"),
+    THREAD("Thread/Matter", "🧵", "smart-home mesh: +smarts"),
+    TAG_FINDER("Lost-item tag", "🔖", "found a finder: +XP"),
     UNKNOWN("Mystery device", "❔", "curiosity: +XP"),
 }
 
@@ -89,6 +95,8 @@ class DeviceRecord(
     var timesConnected: Int = 0,
     var bestRssi: Int = -127,
     var lastConnected: Long = 0L,
+    var vendor: String = "",
+    var notable: Boolean = false,
 )
 
 data class FriendMsg(val fromMe: Boolean, val text: String, val time: Long)
@@ -217,6 +225,9 @@ data class Settings(
     var showVisitors: Boolean = true,
     var ambientChatter: Boolean = true,
     var mapTrail: Boolean = true,
+    var surveillanceAlerts: Boolean = true,
+    var accentHue: Int = -1,       // -1 = use theme default; else 0..359 custom accent
+    var bigText: Boolean = false,
 )
 
 /** A signal seen by the radar (Wi-Fi network or Bluetooth device). */
@@ -230,6 +241,8 @@ data class SignalInfo(
     val classHint: Int = -1,      // Bluetooth major device class, if known
     val connected: Boolean = false,
     val widthMhz: Int = 20,       // Wi-Fi channel width, for the spectrum view
+    val services: List<String> = emptyList(),  // advertised BLE service UUIDs (lowercase)
+    val mfgId: Int = -1,          // BLE manufacturer id (company identifier)
 )
 
 enum class SignalKind { WIFI, BLUETOOTH, BLE, CELL }
@@ -370,6 +383,11 @@ object C {
     const val MOONLIGHT = "moonlight_moments"
     const val DISCOVERIES_MAPPED = "discoveries_mapped"
     const val DEV_SNIFFS = "dev_sniffs"
+    const val SURVEILLANCE = "surveillance_seen"
+    const val ALPR = "alpr_seen"
+    const val MESH = "mesh_seen"
+    const val LORA = "lora_seen"
+    const val NOTABLE = "notable_finds"
 }
 
 /** Weather the buddy infers from the barometer trend (no internet needed). */

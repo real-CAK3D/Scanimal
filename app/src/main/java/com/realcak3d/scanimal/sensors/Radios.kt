@@ -131,7 +131,12 @@ class BluetoothRadar(private val ctx: Context) {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val data = result.scanRecord?.getServiceData(BuddyLink.ADVERT_UUID)
             if (data != null) { onBuddyAdvert?.invoke(data, result.rssi, result.device.address ?: ""); return }
-            record(result.device, result.rssi, SignalKind.BLE, result.scanRecord?.deviceName)
+            val rec = result.scanRecord
+            val services = rec?.serviceUuids?.map { it.uuid.toString().lowercase() } ?: emptyList()
+            var mfgId = -1
+            val msd = rec?.manufacturerSpecificData
+            if (msd != null && msd.size() > 0) mfgId = msd.keyAt(0)
+            record(result.device, result.rssi, SignalKind.BLE, rec?.deviceName, services, mfgId)
         }
         override fun onBatchScanResults(results: MutableList<ScanResult>) { results.forEach { onScanResult(0, it) } }
         override fun onScanFailed(errorCode: Int) { _status.value = "BLE scan failed ($errorCode)" }
@@ -219,17 +224,18 @@ class BluetoothRadar(private val ctx: Context) {
     }
 
     @SuppressLint("MissingPermission")
-    private fun record(dev: BluetoothDevice, rssi: Int, kind: SignalKind, advName: String?) {
+    private fun record(dev: BluetoothDevice, rssi: Int, kind: SignalKind, advName: String?, services: List<String> = emptyList(), mfgId: Int = -1) {
         val id = dev.address ?: return
         val name = advName ?: runCatching { dev.name }.getOrNull() ?: ""
         val cls = runCatching { dev.bluetoothClass?.majorDeviceClass }.getOrNull() ?: -1
         val now = System.currentTimeMillis()
         val e = seen[id]
         if (e == null) {
-            seen[id] = Entry(SignalInfo(id, name, rssi, kind, classHint = cls), rssi.toDouble(), now)
+            seen[id] = Entry(SignalInfo(id, name, rssi, kind, classHint = cls, services = services, mfgId = mfgId), rssi.toDouble(), now)
         } else {
             e.smooth = e.smooth * 0.6 + rssi * 0.4
-            e.info = SignalInfo(id, name.ifBlank { e.info.name }, e.smooth.toInt(), kind, classHint = if (cls >= 0) cls else e.info.classHint)
+            e.info = SignalInfo(id, name.ifBlank { e.info.name }, e.smooth.toInt(), kind, classHint = if (cls >= 0) cls else e.info.classHint,
+                services = services.ifEmpty { e.info.services }, mfgId = if (mfgId >= 0) mfgId else e.info.mfgId)
             e.lastSeen = now
         }
     }

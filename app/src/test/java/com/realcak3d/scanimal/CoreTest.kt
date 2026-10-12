@@ -400,3 +400,49 @@ class EnvTest {
     }
 }
 
+
+class DetectionTest {
+    private fun sig(name: String, kind: SignalKind = SignalKind.BLE, id: String = "AA:BB:CC:DD:EE:FF", services: List<String> = emptyList(), mfg: Int = -1) =
+        SignalInfo(id, name, -60, kind, services = services, mfgId = mfg)
+
+    @Test fun meshtasticAndLora() {
+        assertEquals(DeviceType.LORA, DeviceClassifier.classify(sig("Meshtastic_1a2b")))
+        assertEquals(DeviceType.LORA, DeviceClassifier.classify(sig("node", services = listOf("6ba1b218-15a8-461f-9fa8-5dcae273eafd"))))
+        assertEquals(DeviceType.LORA, DeviceClassifier.classify(sig("anything", mfg = 0x0A98)))
+        assertEquals(DeviceType.LORA, DeviceClassifier.classify(sig("Heltec_V3")))
+        assertEquals(DeviceType.LORA, DeviceClassifier.classify(sig("LILYGO T-Beam")))
+    }
+
+    @Test fun surveillanceAndAlpr() {
+        assertEquals(DeviceType.ALPR, DeviceClassifier.classify(sig("FlockSafety-Falcon", SignalKind.WIFI)))
+        assertEquals(DeviceType.ALPR, DeviceClassifier.classify(sig("vigilant-lpr")))
+        assertEquals(DeviceType.SURVEILLANCE, DeviceClassifier.classify(sig("HIKVISION-DS2CD", SignalKind.WIFI)))
+        assertEquals(DeviceType.SURVEILLANCE, DeviceClassifier.classify(sig("AXIS-P1448", SignalKind.WIFI)))
+        assertEquals(DeviceType.THREAD, DeviceClassifier.classify(sig("Nanoleaf Matter")))
+        // A plain router should NOT be flagged as surveillance.
+        assertEquals(DeviceType.ROUTER, DeviceClassifier.classify(sig("NETGEAR-Home", SignalKind.WIFI)))
+    }
+
+    @Test fun vendorLookup() {
+        assertEquals("Espressif", Vendors.forMac("240AC4:12:34:56".replace(":", "").let { "24:0A:C4:12:34:56" }))
+        assertEquals("Apple", Vendors.forMfg(0x004C))
+        assertEquals("Meshtastic", Vendors.forMfg(0x0A98))
+        assertEquals("", Vendors.forMac("ZZ"))
+    }
+
+    @Test fun notableFindAlertsAndCounts() {
+        val e = Engine(GameData(), Random(5)); e.newEgg(1_760_000_000_000L)
+        val t = 1_760_000_000_000L
+        e.layEgg("Rex", Sex.MALE, Species.DINO, t); e.tick(t + 16 * 60_000L)
+        val ev = e.onBluetooth(listOf(SignalInfo("11:22:33:44:55:66", "Meshtastic_abcd", -50, SignalKind.BLE)), t + 20 * 60_000L)
+        assertEquals(1L, e.g.count(C.LORA))
+        assertEquals(1L, e.g.count(C.NOTABLE))
+        assertTrue(e.g.devices.values.any { it.type == DeviceType.LORA && it.notable })
+        assertTrue("lora_1" in e.g.achievements)
+        assertTrue(ev.any { it is GameEvent.Say && (it as GameEvent.Say).text.contains("LoRa") })
+        // Flock over Wi-Fi
+        e.onWifiScan(listOf(SignalInfo("aa:aa:aa:aa:aa:aa", "FlockSafety Falcon", -70, SignalKind.WIFI)), t + 21 * 60_000L)
+        assertEquals(1L, e.g.count(C.ALPR))
+        assertTrue("alpr_1" in e.g.achievements)
+    }
+}

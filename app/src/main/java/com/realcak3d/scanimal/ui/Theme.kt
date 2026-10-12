@@ -69,12 +69,16 @@ object Themes {
 /** Current palette. Backed by Compose state so switching themes recolors everything live. */
 object Pal {
     var theme by mutableStateOf(Themes.all[0])
+    /** -1 = use the theme's own accent; 0..359 = a custom accent hue applied app-wide. */
+    var accent by mutableStateOf(-1)
+    var bigText by mutableStateOf(false)
+    private fun acc(fallback: Color, v: Float = 0.9f) = if (accent in 0..359) hsv(accent.toFloat(), 0.72f, v) else fallback
     val bg get() = theme.bg
     val panel get() = theme.panel
     val panel2 get() = theme.panel2
     val line get() = theme.line
-    val mint get() = theme.mint
-    val mintDim get() = theme.mintDim
+    val mint get() = acc(theme.mint)
+    val mintDim get() = acc(theme.mintDim, 0.55f)
     val amber get() = theme.amber
     val pink get() = theme.pink
     val sky get() = theme.sky
@@ -95,7 +99,12 @@ fun ScanimalTheme(content: @Composable () -> Unit) {
         surfaceContainer = t.panel, surfaceContainerHigh = t.panel2, surfaceContainerHighest = t.panel2,
         surfaceContainerLow = t.panel, surfaceContainerLowest = t.bg,
     )
-    MaterialTheme(colorScheme = scheme, content = content)
+    if (Pal.bigText) {
+        val d = androidx.compose.ui.platform.LocalDensity.current
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(d.density, (d.fontScale * 1.18f).coerceAtMost(1.5f))
+        ) { MaterialTheme(colorScheme = scheme, content = content) }
+    } else MaterialTheme(colorScheme = scheme, content = content)
 }
 
 val Mono = FontFamily.Monospace

@@ -204,6 +204,7 @@ fun HudScreen(repo: GameRepository, hub: SensorHub) {
             "CELL  ${cells.size} now / ${g.count(C.CELLS)} seen",
             "SATS  ${sats.size} now / ${g.count(C.SATS_MAX)} max",
             "DEV   ${g.devices.size} logged / ${g.devices.values.map { it.type }.toSet().size} kinds",
+            "WATCH 📷${g.count(C.SURVEILLANCE)} 🚘${g.count(C.ALPR)} 🕸️${g.count(C.MESH)} 📡${g.count(C.LORA)}",
             "CONN  ${g.count(C.CONNECTIONS)}  LOCK ${g.count(C.RADAR_LOCKS)}",
             "SCANS ${g.count(C.SCANS)} / uniq ${g.count(C.UNIQUE_CODES)}",
             "DIST  ${repo.engine.fmtDist(g.count(C.DISTANCE_M))}  STEP ${g.count(C.STEPS)}",
@@ -258,7 +259,10 @@ fun NerdScreen(repo: GameRepository, hub: SensorHub) {
                     "• Developer options → Wi-Fi scan throttling OFF: the Wi-Fi radar and spectrum refresh many times faster.\n" +
                     "• Developer options → Stay awake while charging: leave the HUD up on a dock.\n" +
                     "• Location → Mode: High accuracy (Wi-Fi + Bluetooth scanning ON): more satellites and steadier bearings.\n" +
-                    "• Keep Bluetooth and Wi-Fi radios ON even when 'not connected' so scans keep working.",
+                    "• Keep Bluetooth and Wi-Fi radios ON even when 'not connected' so scans keep working.
+
+" +
+                    "Spotting gear: Scanimal flags likely surveillance cameras, license-plate readers, mesh and LoRa (Meshtastic) devices from their public radio fingerprints — names, Bluetooth service IDs and MAC vendors. It's a guess, never a confirmation, and it only ever listens. A phone can't receive LoRa RF, so LoRa nodes are spotted by their Bluetooth.",
                 color = Pal.sub, fontSize = 12.sp, lineHeight = 18.sp,
             )
         }
@@ -281,5 +285,52 @@ fun EnvChips(repo: GameRepository) {
         if (g.weather != com.realcak3d.scanimal.core.Weather.UNKNOWN) Chip("${g.weather.icon} ${g.weather.label}", Pal.sky)
         Chip("${g.biome.icon} ${g.biome.label}", Pal.mint)
         if (g.motion != com.realcak3d.scanimal.core.Motion.STILL) Chip("${g.motion.icon} ${g.motion.label}", Pal.violet)
+    }
+}
+
+// ------------------------------------------------------------------ Notable finds (surveillance / mesh / LoRa)
+
+@Composable
+fun NotableScreen(repo: GameRepository) {
+    val g by rememberGame(repo)
+    val df = remember { java.text.SimpleDateFormat("MMM d, h:mm a", java.util.Locale.getDefault()) }
+    val notable = g.devices.values.filter { it.notable }.sortedByDescending { it.lastSeen }
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        item {
+            ScreenTitle("Notable finds", "Surveillance, readers, mesh & LoRa the buddy has spotted")
+            Panel {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+                    NotableStat("📷", g.count(C.SURVEILLANCE)); NotableStat("🚘", g.count(C.ALPR))
+                    NotableStat("🕸️", g.count(C.MESH)); NotableStat("📡", g.count(C.LORA))
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "All passive: the buddy only listens to radios that broadcast in the open. These are best guesses from device names, Bluetooth service IDs and MAC vendors — not confirmations.\n\n" +
+                        "LoRa note: your phone has no LoRa radio, so a 'LoRa node' is spotted by its Bluetooth, not its long-range signal.",
+                    color = Pal.sub, fontSize = 12.sp, lineHeight = 17.sp,
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+        if (notable.isEmpty()) item { Text("Nothing notable yet. Keep exploring with the app open — cameras and mesh nodes turn up in public and around smart homes.", color = Pal.sub, modifier = Modifier.padding(8.dp)) }
+        items(notable, key = { "${it.kind}:${it.id}" }) { d ->
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Pal.panel).border(1.dp, Pal.amber.copy(alpha = 0.5f), RoundedCornerShape(14.dp)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(d.type.icon, fontSize = 26.sp, modifier = Modifier.padding(end = 10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(d.name.ifBlank { d.vendor.ifBlank { "(unnamed)" } }, color = Pal.text, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
+                    Text("${d.type.label}${if (d.vendor.isNotBlank()) " · ${d.vendor}" else ""} · ${kindLabel(d.kind)}", color = Pal.amber, fontSize = 12.sp)
+                    Text("${d.id} · seen ${d.timesSeen}× · last ${df.format(java.util.Date(d.lastSeen))}", color = Pal.sub, fontSize = 10.sp, fontFamily = Mono, maxLines = 1)
+                }
+            }
+        }
+        item { Spacer(Modifier.height(16.dp)) }
+    }
+}
+
+@Composable
+private fun NotableStat(icon: String, n: Long) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(icon, fontSize = 24.sp)
+        Text("$n", color = Pal.text, fontWeight = FontWeight.Bold, fontFamily = Mono)
     }
 }
