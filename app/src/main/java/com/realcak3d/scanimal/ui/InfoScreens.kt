@@ -56,7 +56,7 @@ import java.util.Locale
 @Composable
 fun ShopScreen(repo: GameRepository) {
     val g by rememberGame(repo)
-    var tab by rememberSaveable { mutableStateOf(ItemKind.CONSUMABLE) }
+    var tab by remember { mutableStateOf(ItemKind.CONSUMABLE) }
     var msg by remember { mutableStateOf<String?>(null) }
     Column(Modifier.fillMaxSize()) {
         ScreenTitle("Shop", "🪙 ${g.coins} coins · Level ${g.buddy.level}")

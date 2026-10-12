@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -61,9 +62,9 @@ fun IntroScreen(repo: GameRepository, ownerDone: Boolean) {
     var food by rememberSaveable { mutableStateOf(repo.data.owner.favoriteFood) }
     var hobby by rememberSaveable { mutableStateOf(repo.data.owner.hobby) }
     var pet by rememberSaveable { mutableStateOf(repo.data.owner.pet) }
-    var species by rememberSaveable { mutableStateOf(Species.BLOB) }
+    var species by remember { mutableStateOf(Species.BLOB) }
     var name by rememberSaveable { mutableStateOf("") }
-    var sex by rememberSaveable { mutableStateOf(Sex.MYSTERY) }
+    var sex by remember { mutableStateOf(Sex.MYSTERY) }
     Column(
         Modifier.fillMaxSize().background(Pal.bg).statusBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

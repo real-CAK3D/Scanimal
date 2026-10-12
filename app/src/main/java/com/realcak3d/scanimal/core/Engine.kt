@@ -127,6 +127,7 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
             s.happiness += 20; s.clampAll()
             grantCoins(50, events)
         }
+        events += milestoneStickers(now)
         events += checkAchievements(now)
         return events
     }
@@ -738,10 +739,10 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
         val ev = mutableListOf<GameEvent>()
         g.bump(C.NOTABLE)
         when (r.type) {
-            DeviceType.SURVEILLANCE -> g.bump(C.SURVEILLANCE)
-            DeviceType.ALPR -> g.bump(C.ALPR)
+            DeviceType.SURVEILLANCE -> { g.bump(C.SURVEILLANCE); award("special:surveillance", now, ev) }
+            DeviceType.ALPR -> { g.bump(C.ALPR); award("special:surveillance", now, ev) }
             DeviceType.MESH -> g.bump(C.MESH)
-            DeviceType.LORA -> g.bump(C.LORA)
+            DeviceType.LORA -> { g.bump(C.LORA); award("special:lora", now, ev) }
             else -> {}
         }
         val name = r.name.ifBlank { r.vendor.ifBlank { r.id } }
@@ -883,6 +884,7 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
         g.bump(C.FRIENDS)
         if (!viaLink) g.bump(C.NEARBY_MEETS)
         val ev = mutableListOf<GameEvent>()
+        award("special:firstfriend", now, ev)
         if (b.hatched) {
             s.social += 10; s.happiness += 8; s.clampAll()
             ev += GameEvent.Say("A new friend! Hi ${card.name} the ${card.species.label.lowercase()}! ${card.species.emoji}", Anim.LOVE)
@@ -973,9 +975,33 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
         if (!g.stickers.add(id)) return
         g.bump(C.STICKERS)
         val st = Stickers.byId[id]
-        events += GameEvent.Say("New sticker: ${st?.emoji ?: "⭐"} ${st?.name ?: id}!", Anim.SPARKLE)
+        val coins = when (st?.tier) {
+            StickerTier.LEGENDARY -> 40; StickerTier.EPIC -> 20; StickerTier.RARE -> 12; StickerTier.UNCOMMON -> 8; else -> 5
+        }
+        events += GameEvent.Say("New sticker: ${st?.emoji ?: "⭐"} ${st?.name ?: id}${if (st != null && st.tier != StickerTier.COMMON) " (${st.tier.label})" else ""}!", Anim.SPARKLE)
         g.log(now, st?.emoji ?: "⭐", "Collected a sticker: ${st?.name ?: id}.")
-        grantCoins(5, events)
+        grantCoins(coins, events)
+        // Did this complete a set?
+        if (st != null && !id.startsWith("trophy:")) {
+            Stickers.completable.firstOrNull { it.name == st.set }?.let { set ->
+                if (set.trophyId !in g.stickers && Stickers.setMembers(set.name).all { it.id in g.stickers }) {
+                    g.stickers.add(set.trophyId); g.bump(C.STICKERS)
+                    events += GameEvent.Say("🎉 Album set complete: ${set.name}! Trophy ${set.trophyEmoji} earned!", Anim.LEVEL_UP)
+                    g.log(now, set.trophyEmoji, "Completed the ${set.name} sticker set!")
+                    grantCoins(set.reward, events)
+                }
+            }
+        }
+    }
+
+    /** Level / distance / age milestone stickers, checked opportunistically. */
+    fun milestoneStickers(now: Long): List<GameEvent> {
+        val ev = mutableListOf<GameEvent>()
+        listOf(5, 10, 25, 50, 99).filter { b.level >= it }.forEach { award("lvl:$it", now, ev) }
+        val d = g.count(C.DISTANCE_M)
+        listOf(1_000L, 10_000L, 42_195L, 100_000L).filter { d >= it }.forEach { award("dist:$it", now, ev) }
+        if (b.hatched && b.stage(now) == Stage.ELDER) award("special:elder", now, ev)
+        return ev
     }
 
     fun rollQuestsIfNeeded(now: Long) {
@@ -1161,6 +1187,7 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
             grantCoins(10 + b.level * 2, ev)
             if (b.level % 10 == 0 && b.lives < 5) { b.lives += 1; ev += GameEvent.Say("Bonus life for reaching level ${b.level}! ❤️", Anim.SPARKLE) }
             g.log(now, "⭐", "${b.name} reached level ${b.level}!")
+            ev += milestoneStickers(now)
         }
         return ev
     }

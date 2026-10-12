@@ -335,4 +335,24 @@ class Haptics(ctx: Context) {
         beep(if (strength > 0.75f) ToneGenerator.TONE_PROP_BEEP2 else ToneGenerator.TONE_PROP_BEEP, 40)
         buzz((15 + strength * 45).toLong(), (40 + strength * 215).toInt())
     }
+
+    /** Short melodic cues for game events (honours the sounds toggle). */
+    fun sfx(kind: String) {
+        if (!soundOn) return
+        val tg = tone ?: return
+        val seq: List<Pair<Int, Int>> = when (kind) {
+            "eat" -> listOf(ToneGenerator.TONE_PROP_BEEP to 50)
+            "level" -> listOf(ToneGenerator.TONE_DTMF_5 to 90, ToneGenerator.TONE_DTMF_9 to 90, ToneGenerator.TONE_DTMF_D to 140)
+            "hatch" -> listOf(ToneGenerator.TONE_DTMF_1 to 80, ToneGenerator.TONE_DTMF_5 to 80, ToneGenerator.TONE_DTMF_9 to 120, ToneGenerator.TONE_SUP_RINGTONE to 180)
+            "achieve" -> listOf(ToneGenerator.TONE_PROP_BEEP2 to 70, ToneGenerator.TONE_PROP_ACK to 120)
+            "sticker" -> listOf(ToneGenerator.TONE_PROP_BEEP to 50, ToneGenerator.TONE_PROP_BEEP2 to 70)
+            "notable" -> listOf(ToneGenerator.TONE_SUP_RADIO_ACK to 120)
+            "sad" -> listOf(ToneGenerator.TONE_SUP_ERROR to 180)
+            "coin" -> listOf(ToneGenerator.TONE_PROP_ACK to 60)
+            else -> listOf(ToneGenerator.TONE_PROP_BEEP to 40)
+        }
+        Thread {
+            for ((t, ms) in seq) { runCatching { tg.startTone(t, ms) }; try { Thread.sleep((ms + 20).toLong()) } catch (_: InterruptedException) {} }
+        }.apply { isDaemon = true; start() }
+    }
 }

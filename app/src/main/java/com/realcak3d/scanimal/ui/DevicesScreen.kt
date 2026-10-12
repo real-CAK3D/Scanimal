@@ -49,7 +49,7 @@ fun DevicesScreen(repo: GameRepository, hub: SensorHub) {
     val wifi by hub.wifi.results.collectAsStateWithLifecycle()
     val cells by hub.cells.cells.collectAsStateWithLifecycle()
     val connectedSsid by hub.wifi.connectedSsid.collectAsStateWithLifecycle()
-    var filter by rememberSaveable { mutableStateOf<DeviceType?>(null) }
+    var filter by remember { mutableStateOf<DeviceType?>(null) }
     var kind by rememberSaveable { mutableStateOf("all") }
     var query by rememberSaveable { mutableStateOf("") }
     var sort by rememberSaveable { mutableStateOf("recent") }

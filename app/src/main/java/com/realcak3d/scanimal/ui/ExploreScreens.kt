@@ -29,7 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -93,29 +92,45 @@ fun QuestsScreen(repo: GameRepository) {
 @Composable
 fun AlbumScreen(repo: GameRepository) {
     val g by rememberGame(repo)
-    var cat by rememberSaveable { mutableStateOf(Stickers.categories.first()) }
+    var cat by remember { mutableStateOf(Stickers.sets.first()) }
+    val members = Stickers.all.filter { it.set == cat }
+    val got = members.count { it.id in g.stickers }
+    val setDef = Stickers.completable.firstOrNull { it.name == cat }
+    val setComplete = setDef != null && setDef.trophyId in g.stickers
     Column(Modifier.fillMaxSize()) {
-        ScreenTitle("Album", "${g.stickers.size} / ${Stickers.all.size} stickers collected")
+        ScreenTitle("Album", "${g.stickers.size} / ${Stickers.all.size} collected · ${g.stickers.count { it.startsWith("trophy:") }} trophies")
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Stickers.categories.forEach { c ->
-                val n = Stickers.all.count { it.category == c }
-                val got = Stickers.all.count { it.category == c && it.id in g.stickers }
-                FilterChip("$c $got/$n", cat == c) { cat = c }
+            Stickers.sets.forEach { c ->
+                val mm = Stickers.all.filter { it.set == c }
+                val gg = mm.count { it.id in g.stickers }
+                val done = gg == mm.size
+                FilterChip("${if (done) "✓ " else ""}$c $gg/${mm.size}", cat == c) { cat = c }
             }
         }
-        Spacer(Modifier.height(8.dp))
+        if (setDef != null) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f).height(8.dp).clip(RoundedCornerShape(4.dp)).background(Pal.panel2)) {
+                    Box(Modifier.fillMaxWidth((got.toFloat() / members.size).coerceIn(0f, 1f)).height(8.dp).clip(RoundedCornerShape(4.dp)).background(if (setComplete) Pal.amber else Pal.mint))
+                }
+                Text("  ${setDef.trophyEmoji}${if (setComplete) " ✓" else " +${setDef.reward}🪙"}", color = if (setComplete) Pal.amber else Pal.sub, fontSize = 12.sp)
+            }
+        }
+        Spacer(Modifier.height(4.dp))
         LazyVerticalGrid(GridCells.Adaptive(96.dp), Modifier.fillMaxSize().padding(horizontal = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            gridItems(Stickers.all.filter { it.category == cat }, key = { it.id }) { st ->
-                val got = st.id in g.stickers
+            gridItems(members, key = { it.id }) { st ->
+                val owned = st.id in g.stickers
+                val tierColor = Color(st.tier.argb)
                 Column(
-                    Modifier.aspectRatio(0.82f).clip(RoundedCornerShape(14.dp)).background(if (got) Pal.panel else Pal.panel2.copy(alpha = 0.5f))
-                        .border(1.dp, if (got) Pal.mint.copy(alpha = 0.5f) else Pal.line, RoundedCornerShape(14.dp)).padding(6.dp),
+                    Modifier.aspectRatio(0.82f).clip(RoundedCornerShape(14.dp))
+                        .background(if (owned) tierColor.copy(alpha = 0.12f) else Pal.panel2.copy(alpha = 0.4f))
+                        .border(if (owned) 2.dp else 1.dp, if (owned) tierColor.copy(alpha = 0.7f) else Pal.line, RoundedCornerShape(14.dp)).padding(6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
                 ) {
-                    Text(if (got) st.emoji else "❔", fontSize = 30.sp)
+                    Text(if (owned) st.emoji else "❔", fontSize = 30.sp)
                     Spacer(Modifier.height(4.dp))
-                    Text(if (got) st.name else "???", color = if (got) Pal.text else Pal.sub, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 2)
-                    if (!got) Text(st.hint, color = Pal.sub.copy(alpha = 0.7f), fontSize = 8.sp, maxLines = 2)
+                    Text(if (owned) st.name else "???", color = if (owned) Pal.text else Pal.sub, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                    if (owned) Text(st.tier.label, color = tierColor, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                    else Text(st.hint, color = Pal.sub.copy(alpha = 0.7f), fontSize = 8.sp, maxLines = 2)
                 }
             }
         }

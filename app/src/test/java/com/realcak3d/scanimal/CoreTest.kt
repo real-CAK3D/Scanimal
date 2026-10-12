@@ -446,3 +446,33 @@ class DetectionTest {
         assertTrue("alpr_1" in e.g.achievements)
     }
 }
+
+class StickerSetTest {
+    private val t0 = 1_760_000_000_000L
+    private fun hatched(): Engine {
+        val e = Engine(GameData(), Random(5)); e.newEgg(t0)
+        e.layEgg("Rex", Sex.MALE, Species.DINO, t0); e.tick(t0 + 16 * 60_000L)
+        return e
+    }
+    @Test fun setCompletionGrantsTrophy() {
+        val e = hatched()
+        val coinsBefore = e.g.coins
+        val ev = mutableListOf<GameEvent>()
+        Stickers.setMembers("Weather").forEach { e.award(it.id, t0, ev) }
+        assertTrue("trophy:Weather" in e.g.stickers, "weather trophy earned")
+        assertTrue(e.g.coins > coinsBefore)
+        // tiers present
+        assertNotNull(Stickers.byId["sp:DINO"])
+        assertEquals(StickerTier.EPIC, Stickers.byId["sp:DINO"]!!.tier)
+        assertTrue(Stickers.all.size >= 60)
+        assertTrue(Stickers.sets.contains("Milestones"))
+    }
+    @Test fun codecKeepsNewStickers() {
+        val e = hatched()
+        val ev = mutableListOf<GameEvent>()
+        e.award("special:lora", t0, ev)
+        val back = Codec.decode(Codec.encode(e.g))
+        assertEquals(Codec.encode(e.g), Codec.encode(back))
+        assertTrue("special:lora" in back.stickers)
+    }
+}

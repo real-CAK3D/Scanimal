@@ -127,10 +127,12 @@ class SensorHub(ctx: Context, val repo: GameRepository) {
 
     fun react(events: List<GameEvent>) {
         for (e in events) when (e) {
-            is GameEvent.Unlocked -> haptics.pattern(longArrayOf(0, 40, 60, 40, 60, 90))
-            is GameEvent.LevelUp -> haptics.pattern(longArrayOf(0, 80, 50, 80, 50, 160))
-            is GameEvent.Ate -> haptics.buzz(25, 90)
-            is GameEvent.Died -> haptics.pattern(longArrayOf(0, 300, 100, 300))
+            is GameEvent.Unlocked -> { haptics.pattern(longArrayOf(0, 40, 60, 40, 60, 90)); haptics.sfx("achieve") }
+            is GameEvent.LevelUp -> { haptics.pattern(longArrayOf(0, 80, 50, 80, 50, 160)); haptics.sfx("level") }
+            is GameEvent.Ate -> { haptics.buzz(25, 90); haptics.sfx("eat") }
+            is GameEvent.Died -> { haptics.pattern(longArrayOf(0, 300, 100, 300)); haptics.sfx("sad") }
+            is GameEvent.Say -> if (e.anim == Anim.HATCH) { haptics.pattern(longArrayOf(0, 60, 40, 60, 40, 120, 60, 200)); haptics.sfx("hatch") }
+                else if (e.anim == Anim.SPARKLE && e.text.contains("sticker", true)) haptics.sfx("sticker")
             else -> {}
         }
     }
