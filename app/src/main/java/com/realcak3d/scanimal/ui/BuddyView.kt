@@ -176,20 +176,6 @@ private fun DrawScope.drawBuddy(
     when (anim) {
         Anim.HAPPY, Anim.LEVEL_UP, Anim.HATCH -> { val j = abs(sin(p * PI.toFloat() * 3)) * (1 - p); bob -= j * 14 * u; squashY += j * 0.08f; squashX -= j * 0.06f }
         Anim.EAT -> { squashX += sin(p * 50f) * 0.04f; squashY -= sin(p * 50f) * 0.04f }
-        Anim.EAT -> {
-            val my = cy + bh * 0.13f
-            if (p < 0.45f) {
-                val k = (p / 0.45f)
-                val mp = Offset(cx + (1 - k) * bw * 1.1f, (cy - bh * 0.1f) + ((my - (cy - bh * 0.1f)) * k) - sin(k * PI.toFloat()) * bh * 0.25f)
-                val mr = 3.2f * u * (1f - k * 0.35f)
-                drawCircle(Pal.amber, mr, mp)
-                drawCircle(Color(0xFF8D6E63), mr * 0.7f, mp)
-                drawCircle(Color.White.copy(alpha = 0.7f), mr * 0.28f, mp + Offset(-mr * 0.3f, -mr * 0.3f))
-            } else repeat(4) { i ->                                   // crumbs drop after the bite
-                val cp = ((p - 0.45f) / 0.55f + i * 0.12f) % 1f
-                drawCircle(Color(0xFFB98B5E).copy(alpha = (1 - cp) * 0.9f), 1.1f * u, Offset(cx + (i - 1.5f) * 2.4f * u, my + cp * 14 * u))
-            }
-        }
         Anim.DANCE -> { tilt = sin(t * 9f) * 12f; bob -= abs(sin(t * 9f)) * 6 * u }
         Anim.DIZZY -> tilt = sin(t * 6f) * 14f
         Anim.SHOCK -> { squashY += 0.12f * (1 - p); squashX -= 0.08f * (1 - p); bob -= 6 * u * (1 - p) }

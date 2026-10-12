@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -36,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -51,6 +53,7 @@ import com.realcak3d.scanimal.core.Stickers
 import com.realcak3d.scanimal.data.GameRepository
 import com.realcak3d.scanimal.sensors.SensorHub
 import com.realcak3d.scanimal.work.Updater
+import kotlin.math.PI
 import kotlin.math.max
 import kotlin.math.min
 
@@ -137,44 +140,109 @@ fun AlbumScreen(repo: GameRepository) {
     }
 }
 
-// ------------------------------------------------------------------ Map
+// ------------------------------------------------------------------ Map (tilted 3D)
 
 @Composable
 fun MapScreen(repo: GameRepository) {
     val g by rememberGame(repo)
     val pts = g.discoveries
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        ScreenTitle("Explore map", "${pts.size} discoveries pinned on this phone")
-        if (pts.isEmpty()) {
+    if (pts.isEmpty()) {
+        Column(Modifier.fillMaxSize()) {
+            ScreenTitle("Explore map", "No discoveries pinned yet")
             Panel(Modifier.padding(12.dp)) {
-                Text("Nothing pinned yet. With \"Map trail\" on in Settings and location allowed, every new network, device and tower you find drops a pin here. It never leaves your phone.", color = Pal.sub, fontSize = 13.sp)
-            }
-            return@Column
-        }
-        val minLat = pts.minOf { it.lat }; val maxLat = pts.maxOf { it.lat }
-        val minLon = pts.minOf { it.lon }; val maxLon = pts.maxOf { it.lon }
-        val latSpan = max(1e-4, maxLat - minLat); val lonSpan = max(1e-4, maxLon - minLon)
-        Box(Modifier.padding(12.dp).fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(Color(0xFF07130F)).border(1.dp, Pal.line, RoundedCornerShape(16.dp))) {
-            Canvas(Modifier.fillMaxSize().padding(16.dp)) {
-                for (i in 0..4) {
-                    drawLine(Pal.mint.copy(alpha = 0.08f), Offset(size.width * i / 4, 0f), Offset(size.width * i / 4, size.height), 1f)
-                    drawLine(Pal.mint.copy(alpha = 0.08f), Offset(0f, size.height * i / 4), Offset(size.width, size.height * i / 4), 1f)
-                }
-                pts.takeLast(1500).forEach { d ->
-                    val x = ((d.lon - minLon) / lonSpan).toFloat() * size.width
-                    val y = (1f - ((d.lat - minLat) / latSpan).toFloat()) * size.height
-                    val c = when (d.kind) { "wifi" -> Pal.mint; "bt", "ble" -> Pal.sky; "cell" -> Pal.violet; else -> Pal.amber }
-                    drawCircle(c.copy(alpha = 0.7f), 3.5f, Offset(x, y))
-                }
+                Text("With \"Map trail\" on in Settings and location allowed, every new network, device and tower you find drops a pin on this 3D map. It never leaves your phone.", color = Pal.sub, fontSize = 13.sp)
             }
         }
-        Panel(Modifier.padding(horizontal = 12.dp), title = "Legend") {
-            KeyValue("📶 Wi-Fi", "${pts.count { it.kind == "wifi" }}")
-            KeyValue("🔵 Bluetooth", "${pts.count { it.kind == "bt" || it.kind == "ble" }}")
-            KeyValue("🗼 Cell", "${pts.count { it.kind == "cell" }}")
-            Text("A rough local map scaled to the pins. No street map is downloaded; this is just where your signals were found.", color = Pal.sub, fontSize = 11.sp)
+        return
+    }
+    // Project to local meters around the centroid.
+    val lat0 = pts.sumOf { it.lat } / pts.size
+    val lon0 = pts.sumOf { it.lon } / pts.size
+    data class P(val x: Float, val y: Float, val kind: String)
+    val mapped = pts.takeLast(1500).map {
+        P(((it.lon - lon0) * 111320.0 * kotlin.math.cos(Math.toRadians(lat0))).toFloat(),
+          ((it.lat - lat0) * 110540.0).toFloat(), it.kind)
+    }
+    val radius = max(1f, mapped.maxOf { kotlin.math.hypot(it.x, it.y) })
+
+    var yaw by remember { mutableStateOf(0.5f) }
+    var pitch by remember { mutableStateOf(0.95f) }   // radians, ~55°
+    var zoom by remember { mutableStateOf(1f) }
+    var panX by remember { mutableStateOf(0f) }
+    var panY by remember { mutableStateOf(0f) }
+
+    Column(Modifier.fillMaxSize()) {
+        ScreenTitle("Explore map", "${pts.size} discoveries · drag to rotate, pinch to zoom")
+        Box(
+            Modifier.weight(1f).fillMaxWidth().padding(10.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFF05100A))
+                .pointerInput(Unit) {
+                    detectTransformGestures { _, pan, gz, rot ->
+                        zoom = (zoom * gz).coerceIn(0.4f, 6f)
+                        yaw += rot * (PI.toFloat() / 180f)
+                        // Vertical drag tilts, horizontal drag spins (so it works one-finger too).
+                        pitch = (pitch - pan.y * 0.004f).coerceIn(0.2f, 1.45f)
+                        yaw += pan.x * 0.005f
+                    }
+                }
+        ) {
+            Canvas(Modifier.fillMaxSize()) {
+                val cx = size.width / 2; val cy = size.height * 0.52f
+                val focal = 2.3f
+                val camDist = 2.6f
+                val worldScale = 1.1f / radius
+                val cosY = kotlin.math.cos(yaw); val sinY = kotlin.math.sin(yaw)
+                val cosP = kotlin.math.cos(pitch); val sinP = kotlin.math.sin(pitch)
+                // Projects a world point (wx, wy ground metres, wz up-units) to screen + depth + scale.
+                fun project(wx: Float, wy: Float, wz: Float): FloatArray {
+                    val x = (wx * worldScale) - panX; val y = (wy * worldScale) - panY; val z = wz
+                    val x2 = x * cosY - y * sinY; val y2 = x * sinY + y * cosY
+                    val yP = y2 * cosP - z * sinP; val zP = y2 * sinP + z * cosP
+                    val depth = yP + camDist
+                    if (depth < 0.4f) return floatArrayOf(0f, 0f, -1f, 0f)
+                    val k = focal / depth * zoom
+                    return floatArrayOf(cx + x2 * k * (size.minDimension / 3f), cy - zP * k * (size.minDimension / 3f), depth, k)
+                }
+                // Ground grid
+                val gl = 1.3f
+                var gi = -6
+                while (gi <= 6) {
+                    val f = gi / 6f * gl / worldScale
+                    val a0 = project(f, -gl / worldScale, 0f); val a1 = project(f, gl / worldScale, 0f)
+                    if (a0[2] > 0 && a1[2] > 0) drawLine(Pal.mint.copy(alpha = 0.10f), Offset(a0[0], a0[1]), Offset(a1[0], a1[1]), 1f)
+                    val b0 = project(-gl / worldScale, f, 0f); val b1 = project(gl / worldScale, f, 0f)
+                    if (b0[2] > 0 && b1[2] > 0) drawLine(Pal.mint.copy(alpha = 0.10f), Offset(b0[0], b0[1]), Offset(b1[0], b1[1]), 1f)
+                    gi++
+                }
+                // Pins as pillars, far-to-near for correct overlap.
+                val pinH = 0.22f
+                mapped.map { it to project(it.x, it.y, 0f) }.filter { it.second[2] > 0 }
+                    .sortedByDescending { it.second[2] }
+                    .forEach { (pt, base) ->
+                        val top = project(pt.x, pt.y, pinH)
+                        if (top[2] <= 0) return@forEach
+                        val c = when (pt.kind) { "wifi" -> Pal.mint; "bt", "ble" -> Pal.sky; "cell" -> Pal.violet; else -> Pal.amber }
+                        drawLine(c.copy(alpha = 0.55f), Offset(base[0], base[1]), Offset(top[0], top[1]), (1.5f * base[3]).coerceIn(1f, 5f))
+                        drawCircle(Color.Black.copy(alpha = 0.3f), (2.5f * base[3]).coerceIn(1.5f, 7f), Offset(base[0], base[1]))
+                        drawCircle(c, (2.8f * top[3]).coerceIn(1.5f, 8f), Offset(top[0], top[1]))
+                    }
+                // Compass
+                val nrx = kotlin.math.sin(-yaw); val nry = -kotlin.math.cos(-yaw)
+                drawLine(Pal.red, Offset(size.width - 26f, 30f), Offset(size.width - 26f + nrx * 16f, 30f + nry * 16f), 3f)
+                drawCircle(Pal.line, 18f, Offset(size.width - 26f, 30f), style = Stroke(1.5f))
+            }
         }
-        Spacer(Modifier.height(16.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Tilt", color = Pal.sub, fontSize = 12.sp)
+            androidx.compose.material3.Slider(value = pitch, onValueChange = { pitch = it }, valueRange = 0.2f..1.45f, modifier = Modifier.weight(1f),
+                colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = Pal.mint, activeTrackColor = Pal.mint))
+            SmallBtn("Reset", Pal.panel2) { yaw = 0.5f; pitch = 0.95f; zoom = 1f; panX = 0f; panY = 0f }
+        }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("📶 ${pts.count { it.kind == "wifi" }}", color = Pal.mint, fontSize = 12.sp)
+            Text("🔵 ${pts.count { it.kind == "bt" || it.kind == "ble" }}", color = Pal.sky, fontSize = 12.sp)
+            Text("🗼 ${pts.count { it.kind == "cell" }}", color = Pal.violet, fontSize = 12.sp)
+        }
+        Spacer(Modifier.height(6.dp))
     }
 }
 
