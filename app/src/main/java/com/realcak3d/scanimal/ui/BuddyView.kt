@@ -176,6 +176,20 @@ private fun DrawScope.drawBuddy(
     when (anim) {
         Anim.HAPPY, Anim.LEVEL_UP, Anim.HATCH -> { val j = abs(sin(p * PI.toFloat() * 3)) * (1 - p); bob -= j * 14 * u; squashY += j * 0.08f; squashX -= j * 0.06f }
         Anim.EAT -> { squashX += sin(p * 50f) * 0.04f; squashY -= sin(p * 50f) * 0.04f }
+        Anim.EAT -> {
+            val my = cy + bh * 0.13f
+            if (p < 0.45f) {
+                val k = (p / 0.45f)
+                val mp = Offset(cx + (1 - k) * bw * 1.1f, (cy - bh * 0.1f) + ((my - (cy - bh * 0.1f)) * k) - sin(k * PI.toFloat()) * bh * 0.25f)
+                val mr = 3.2f * u * (1f - k * 0.35f)
+                drawCircle(Pal.amber, mr, mp)
+                drawCircle(Color(0xFF8D6E63), mr * 0.7f, mp)
+                drawCircle(Color.White.copy(alpha = 0.7f), mr * 0.28f, mp + Offset(-mr * 0.3f, -mr * 0.3f))
+            } else repeat(4) { i ->                                   // crumbs drop after the bite
+                val cp = ((p - 0.45f) / 0.55f + i * 0.12f) % 1f
+                drawCircle(Color(0xFFB98B5E).copy(alpha = (1 - cp) * 0.9f), 1.1f * u, Offset(cx + (i - 1.5f) * 2.4f * u, my + cp * 14 * u))
+            }
+        }
         Anim.DANCE -> { tilt = sin(t * 9f) * 12f; bob -= abs(sin(t * 9f)) * 6 * u }
         Anim.DIZZY -> tilt = sin(t * 6f) * 14f
         Anim.SHOCK -> { squashY += 0.12f * (1 - p); squashX -= 0.08f * (1 - p); bob -= 6 * u * (1 - p) }
@@ -187,8 +201,11 @@ private fun DrawScope.drawBuddy(
     if (look.tantrum && anim == Anim.NONE) tilt = sin(t * 18f) * 4f
     if (look.asleep) { bob = sin(t * 1.2f) * 0.8f * u; squashY = 0.94f + sin(t * 1.2f) * 0.02f; squashX = 1.04f }
 
-    val bw = 50 * u * s * fat * squashX
-    val bh = 46 * u * s * squashY
+    val hatching = anim == Anim.HATCH
+    val gp = p * p * (3f - 2f * p)                       // smoothstep ease
+    val grow = if (hatching) (0.25f + 0.75f * gp) else 1f
+    val bw = 50 * u * s * fat * squashX * grow
+    val bh = 46 * u * s * squashY * grow
     val cx = size.width / 2
     val ground = size.height * 0.80f
     val cy = ground - bh / 2 - 4 * u * s + bob
@@ -298,8 +315,12 @@ private fun DrawScope.drawBuddy(
             }
             // Belly
             drawOval(light.copy(alpha = 0.75f), Offset(cx - bw * 0.27f, cy + bh * 0.06f), Size(bw * 0.54f, bh * 0.40f))
-            // Rim light
-            drawOval(Color.White.copy(alpha = 0.22f), Offset(cx - bw * 0.34f, cy - bh * 0.42f), Size(bw * 0.22f, bh * 0.16f))
+            // Ambient occlusion pooling at the base gives volume
+            drawRect(Brush.verticalGradient(listOf(Color.Transparent, dark.copy(alpha = 0.0f), dark.copy(alpha = 0.45f)), startY = cy, endY = cy + bh * 0.5f))
+            // Broad soft top light
+            drawOval(Color.White.copy(alpha = 0.18f), Offset(cx - bw * 0.42f, cy - bh * 0.48f), Size(bw * 0.84f, bh * 0.5f))
+            // Rim light (sharp specular)
+            drawOval(Color.White.copy(alpha = 0.55f), Offset(cx - bw * 0.30f, cy - bh * 0.40f), Size(bw * 0.16f, bh * 0.11f))
             if (look.sick) drawRect(Color(0xFF7CB342).copy(alpha = 0.22f))
             if (look.dirty) repeat(6) {
                 drawCircle(Color(0xFF6D4C41).copy(alpha = 0.35f), 1.6f * u * s, Offset(cx + (r.nextFloat() - 0.5f) * bw * 0.8f, cy + (r.nextFloat() - 0.2f) * bh * 0.5f))
@@ -310,7 +331,7 @@ private fun DrawScope.drawBuddy(
 
         // Face
         val baby = look.stage == Stage.BABY
-        val eyeR = bw * (if (baby) 0.125f else 0.105f)
+        val eyeR = bw * when (look.stage) { Stage.BABY -> 0.125f; Stage.CHILD -> 0.105f; Stage.TEEN -> 0.092f; Stage.ELDER -> 0.085f; else -> 0.088f }
         val eyeY = cy - bh * 0.07f
         val eyeDX = bw * 0.19f
         val lx = lookAt.x.coerceIn(-1f, 1f) * eyeR * 0.32f
@@ -380,8 +401,9 @@ private fun DrawScope.drawBuddy(
             look.dead -> drawLine(ink, Offset(cx - mw / 2, my), Offset(cx + mw / 2, my), 1.4f * u, StrokeCap.Round)
             look.asleep -> drawCircle(ink, 1.3f * u, Offset(cx, my))
             anim == Anim.EAT -> {
-                val open = abs(sin(p * 28f))
-                drawOval(ink, Offset(cx - mw / 2, my - mw * 0.3f * open), Size(mw, mw * 0.7f * open + 1.2f * u))
+                val open = abs(sin(p * 26f))                       // rhythmic chewing
+                drawOval(ink, Offset(cx - mw * 0.55f, my - mw * 0.32f * open), Size(mw * 1.1f, mw * 0.78f * open + 1.4f * u))
+                if (open > 0.4f) drawArc(Color(0xFFD98C8C), 0f, 180f, true, Offset(cx - mw * 0.3f, my), Size(mw * 0.6f, mw * 0.3f * open)) // tongue
             }
             anim == Anim.SHOCK -> drawOval(ink, Offset(cx - mw * 0.25f, my - mw * 0.2f), Size(mw * 0.5f, mw * 0.65f))
             anim == Anim.SICK || look.sick -> {
@@ -443,6 +465,20 @@ private fun DrawScope.drawBuddy(
             val r = bw * (0.55f + p * 0.5f)
             drawStar(Offset(cx + cos(a) * r, cy + sin(a) * r * 0.8f), 2.8f * u * (1 - p * 0.6f), (if (anim == Anim.CLEAN) Pal.sky else Pal.amber).copy(alpha = 1 - p))
         }
+        Anim.EAT -> {
+            val my = cy + bh * 0.13f
+            if (p < 0.45f) {
+                val k = (p / 0.45f)
+                val mp = Offset(cx + (1 - k) * bw * 1.1f, (cy - bh * 0.1f) + ((my - (cy - bh * 0.1f)) * k) - sin(k * PI.toFloat()) * bh * 0.25f)
+                val mr = 3.2f * u * (1f - k * 0.35f)
+                drawCircle(Pal.amber, mr, mp)
+                drawCircle(Color(0xFF8D6E63), mr * 0.7f, mp)
+                drawCircle(Color.White.copy(alpha = 0.7f), mr * 0.28f, mp + Offset(-mr * 0.3f, -mr * 0.3f))
+            } else repeat(4) { i ->                                   // crumbs drop after the bite
+                val cp = ((p - 0.45f) / 0.55f + i * 0.12f) % 1f
+                drawCircle(Color(0xFFB98B5E).copy(alpha = (1 - cp) * 0.9f), 1.1f * u, Offset(cx + (i - 1.5f) * 2.4f * u, my + cp * 14 * u))
+            }
+        }
         Anim.DANCE -> {
             textPaint.color = Pal.violet.toArgb(); textPaint.alpha = 255; textPaint.textSize = 9 * u
             drawContext.canvas.nativeCanvas.drawText("♪", cx - bw * 0.7f, cy - bh * 0.4f + sin(t * 6f) * 4 * u, textPaint)
@@ -457,6 +493,29 @@ private fun DrawScope.drawBuddy(
     }
     if (anim == Anim.LEVEL_UP) {
         drawCircle(Pal.amber.copy(alpha = (1 - p) * 0.8f), bw * (0.6f + p * 0.9f), Offset(cx, cy), style = Stroke(2 * u))
+    }
+    if (anim == Anim.HATCH) {
+        // Bright birth flash, then eggshell shards fly outward and fall under gravity.
+        if (p < 0.3f) drawCircle(Color.White.copy(alpha = (0.3f - p) / 0.3f * 0.7f), bw * (0.5f + p * 2f), Offset(cx, cy))
+        val shell = Color(0xFFF1E3C4); val shellDark = Color(0xFFCDB894)
+        val r2 = Random(look.seed xor 0xEEE)
+        for (i in 0 until 11) {
+            val ang = (i / 11f) * 2 * PI.toFloat() + r2.nextFloat()
+            val speed = (0.8f + r2.nextFloat() * 0.9f)
+            val dist = p * bw * 1.7f * speed
+            val px = cx + cos(ang) * dist
+            val py = (cy - bh * 0.1f) + sin(ang) * dist * 0.6f + p * p * bh * 1.6f   // gravity
+            val sz = (3.5f + r2.nextFloat() * 2.5f) * u * (1f - p * 0.3f)
+            val a = (1f - p) * 0.95f
+            val spin = p * 540f * (if (i % 2 == 0) 1f else -1f) + i * 33f
+            rotate(spin, Offset(px, py)) {
+                val shard = Path().apply {
+                    moveTo(px, py - sz); lineTo(px + sz * 0.9f, py + sz * 0.5f); lineTo(px - sz * 0.7f, py + sz * 0.8f); close()
+                }
+                drawPath(shard, (if (i % 3 == 0) shellDark else shell).copy(alpha = a))
+                drawPath(shard, Color(0xFF8C7650).copy(alpha = a * 0.6f), style = Stroke(0.6f * u))
+            }
+        }
     }
 }
 
