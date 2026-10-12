@@ -60,6 +60,7 @@ import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+import com.realcak3d.scanimal.core.Codec
 import com.realcak3d.scanimal.core.Food
 import com.realcak3d.scanimal.core.FoodFactory
 import com.realcak3d.scanimal.core.FoodTrait
@@ -101,10 +102,11 @@ fun ScanScreen(repo: GameRepository, hub: SensorHub, hasNfc: Boolean) {
     var torch by remember { mutableStateOf(false) }
     var camera by remember { mutableStateOf<Camera?>(null) }
     var result by remember { mutableStateOf<String?>(null) }
+    var lastSpecial by remember { mutableStateOf(0L) }
     val hasCam = ctx.granted(Manifest.permission.CAMERA)
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        ScreenTitle("Feed", if (g.buddy.hatched) "Scan any barcode, QR code or ${if (hasNfc) "NFC tag " else ""}to make a snack" else "Scan anything to hatch your egg!")
+        ScreenTitle("Feed", if (g.buddy.hatched) "Scan any barcode, QR code or ${if (hasNfc) "NFC tag " else ""}to make a snack" else "Scanning warms the egg: −2 min each!")
         Box(
             Modifier
                 .padding(horizontal = 12.dp)
@@ -118,7 +120,12 @@ fun ScanScreen(repo: GameRepository, hub: SensorHub, hasNfc: Boolean) {
                     paused = pending != null || busy,
                     onCamera = { camera = it },
                     onCode = { raw, fmt ->
-                        if (pending == null && !busy) {
+                        val special = if (pending == null && !busy && System.currentTimeMillis() - lastSpecial > 4000) Feeder.special(repo, raw) else null
+                        if (special != null) {
+                            lastSpecial = System.currentTimeMillis()
+                            hub.haptics.pattern(longArrayOf(0, 40, 60, 40))
+                            result = special.filterIsInstance<GameEvent.Say>().lastOrNull()?.text ?: "Got it!"
+                        } else if (pending == null && !busy && System.currentTimeMillis() - lastSpecial > 4000 && Codec.parseLink(raw) == null && Codec.parsePostcard(raw) == null) {
                             busy = true
                             hub.haptics.beep(); hub.haptics.buzz(30, 150)
                             scope.launch {
@@ -149,7 +156,7 @@ fun ScanScreen(repo: GameRepository, hub: SensorHub, hasNfc: Boolean) {
             FoodCard(p.food, p.seenBefore, p.input)
             Spacer(Modifier.height(10.dp))
             Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                BigButton(if (g.buddy.hatched) "🍽️  Feed ${g.buddy.name}" else "🐣  Hatch & feed", Pal.mint, Modifier.weight(1f)) {
+                BigButton(if (g.buddy.hatched) "🍽️  Feed ${g.buddy.name}" else "🔥  Warm the egg", Pal.mint, Modifier.weight(1f)) {
                     val ev = Feeder.feed(repo, p.input)
                     val said = ev.filterIsInstance<GameEvent.Say>().lastOrNull()?.text
                     result = said

@@ -64,6 +64,12 @@ enum class Screen(val title: String, val icon: String) {
 
 @Composable
 fun ScanimalRoot(repo: GameRepository, hub: SensorHub, hasNfc: Boolean) {
+    val game by rememberGame(repo)
+    val needsIntro = !game.owner.done || (!game.buddy.hatched && !game.buddy.dead && game.buddy.hatchReadyAt == 0L)
+    if (needsIntro) {
+        IntroScreen(repo, game.owner.done)
+        return
+    }
     var screen by rememberSaveable { mutableStateOf(Screen.HOME) }
     var asked by rememberSaveable { mutableStateOf(false) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {

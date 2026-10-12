@@ -85,7 +85,18 @@ object Pal {
 }
 
 @Composable
-fun ScanimalTheme(content: @Composable () -> Unit) = MaterialTheme(colorScheme = scheme, content = content)
+fun ScanimalTheme(content: @Composable () -> Unit) {
+    val t = Pal.theme
+    val base = if (t.dark) darkColorScheme() else lightColorScheme()
+    val scheme = base.copy(
+        primary = t.mint, onPrimary = t.bg, secondary = t.amber, onSecondary = t.bg, tertiary = t.pink,
+        background = t.bg, onBackground = t.text, surface = t.panel, onSurface = t.text,
+        surfaceVariant = t.panel2, onSurfaceVariant = t.sub, outline = t.line, error = t.red,
+        surfaceContainer = t.panel, surfaceContainerHigh = t.panel2, surfaceContainerHighest = t.panel2,
+        surfaceContainerLow = t.panel, surfaceContainerLowest = t.bg,
+    )
+    MaterialTheme(colorScheme = scheme, content = content)
+}
 
 val Mono = FontFamily.Monospace
 

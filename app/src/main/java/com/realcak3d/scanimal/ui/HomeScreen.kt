@@ -104,15 +104,12 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
                 modifier = Modifier.fillMaxSize(),
                 lookAt = Offset(-body.tiltX / 6f, body.tiltY / 9f - 0.3f),
                 antennaGlow = antenna,
-                eggCracks = eggTaps,
                 onTap = {
                     if (!b.hatched) {
-                        if (b.name.isNotBlank()) {
-                            eggTaps++
-                            hub.haptics.buzz(20, 80 + eggTaps * 15)
-                            if (eggTaps >= 7) { eggTaps = 0; repo.act { n -> hatch(g.buddy.name, g.buddy.sex, n) } }
-                            else repo.say(listOf("*wobble*", "*crack*", "*tap tap*", "*the egg feels warm*").random(), Anim.SHOCK)
-                        } else repo.say("Name me first! ↓")
+                        eggTaps++
+                        hub.haptics.buzz(20, 60 + (b.eggProgress(System.currentTimeMillis()) * 180).toInt())
+                        val ev = repo.act { n -> warmEgg(n, 10_000L) }
+                        if (ev.isEmpty()) repo.say(listOf("*wobble*", "*tap tap*", "*the egg feels warm*", "*something moves inside*", "*crk*").random(), Anim.SHOCK)
                     } else {
                         hub.haptics.buzz(15, 60)
                         repo.act { n -> pet(n) }
@@ -140,7 +137,7 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
 
         when {
             b.dead -> GameOverPanel(repo, g)
-            !b.hatched -> HatchPanel(repo, g, eggTaps, go)
+            !b.hatched -> IncubationPanel(repo, g, go)
             else -> {
                 ActionRow(repo, hub, g, go)
                 Spacer(Modifier.height(10.dp))
@@ -264,51 +261,21 @@ private fun ActionRow(repo: GameRepository, hub: SensorHub, g: GameData, go: (Sc
 }
 
 @Composable
-private fun HatchPanel(repo: GameRepository, g: GameData, taps: Int, go: (Screen) -> Unit) {
-    var name by remember { mutableStateOf(g.buddy.name) }
-    var sex by remember { mutableStateOf(g.buddy.sex) }
-    val named = g.buddy.name.isNotBlank()
-    Panel(Modifier.padding(horizontal = 12.dp), title = if (named) "Hatch ${g.buddy.name}" else "A new egg!") {
-        if (!named) {
-            Text("Every Scanimal is unique: color, pattern and personality are rolled when the egg is laid.", color = Pal.sub, fontSize = 13.sp)
-            Spacer(Modifier.height(10.dp))
-            OutlinedTextField(
-                value = name, onValueChange = { name = it.take(16) }, label = { Text("Name") }, singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Pal.mint, unfocusedBorderColor = Pal.line),
-            )
-            Spacer(Modifier.height(10.dp))
-            Text("Sex", color = Pal.sub, fontSize = 12.sp)
-            Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                (Sex.entries.map { it to "${it.symbol} ${it.label}" } + (null to "🎲 Random")).forEach { (opt, label) ->
-                    val sel = opt == sex && opt != null
-                    Text(
-                        label, color = if (sel) Pal.bg else Pal.text, fontSize = 13.sp,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(if (sel) Pal.mint else Pal.panel2)
-                            .clickable { sex = opt ?: Sex.entries.random() }
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                    )
-                }
-            }
-            Text("Name ideas: " + listOf("Blip", "Pixel", "Sprocket", "Nova", "Byte", "Mochi", "Gizmo", "Pip", "Zuzu", "Static", "Waffle", "Echo").shuffled().take(4).joinToString(), color = Pal.sub, fontSize = 12.sp)
-            Spacer(Modifier.height(10.dp))
-            Button(
-                onClick = {
-                    val n = name.trim().ifBlank { listOf("Blip", "Pixel", "Nova", "Byte").random() }
-                    repo.act { _ -> this.g.buddy.name = n; this.g.buddy.sex = sex; emptyList() }
-                    repo.say("*the egg wiggles at the sound of \"$n\"*", Anim.SHOCK)
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Pal.mint, contentColor = Pal.bg),
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text("Name the egg", fontWeight = FontWeight.Bold) }
-        } else {
-            Text("Warm the egg by tapping it (${taps}/7), or scan any barcode or QR code to hatch it instantly with a first meal!", color = Pal.text, fontSize = 14.sp)
-            Spacer(Modifier.height(10.dp))
-            Button(onClick = { go(Screen.SCAN) }, colors = ButtonDefaults.buttonColors(containerColor = Pal.amber, contentColor = Pal.bg), modifier = Modifier.fillMaxWidth()) {
-                Text("📷  Scan to hatch", fontWeight = FontWeight.Bold)
-            }
+private fun IncubationPanel(repo: GameRepository, g: GameData, go: (Screen) -> Unit) {
+    val now = System.currentTimeMillis()
+    val prog = g.buddy.eggProgress(now)
+    val left = repo.engine.eggMinutesLeft(now)
+    Panel(Modifier.padding(horizontal = 12.dp), title = "Incubating ${g.buddy.name} the ${g.buddy.species.label.lowercase()}") {
+        Box(Modifier.fillMaxWidth().height(14.dp).clip(RoundedCornerShape(7.dp)).background(Pal.panel2)) {
+            Box(Modifier.fillMaxWidth(prog).height(14.dp).clip(RoundedCornerShape(7.dp)).background(Pal.amber))
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(if (left <= 0) "Any second now…" else "About $left min to go (${(prog * 100).toInt()}%)", color = Pal.text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+        Text("🔥 Tap the egg to warm it (−10 s per tap)\n📷 Scan anything to feed it energy (−2 min)\n🛰️ Signals nearby help too!", color = Pal.sub, fontSize = 13.sp, lineHeight = 19.sp)
+        Spacer(Modifier.height(10.dp))
+        Button(onClick = { go(Screen.SCAN) }, colors = ButtonDefaults.buttonColors(containerColor = Pal.amber, contentColor = Pal.bg), modifier = Modifier.fillMaxWidth()) {
+            Text("📷  Scan to warm the egg", fontWeight = FontWeight.Bold)
         }
     }
 }

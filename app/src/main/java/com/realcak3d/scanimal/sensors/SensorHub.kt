@@ -1,7 +1,12 @@
 package com.realcak3d.scanimal.sensors
 
 import android.content.Context
+import com.realcak3d.scanimal.core.Anim
+import com.realcak3d.scanimal.core.Codec
 import com.realcak3d.scanimal.core.FoodFactory
+import com.realcak3d.scanimal.core.Friend
+import com.realcak3d.scanimal.core.Pattern
+import com.realcak3d.scanimal.core.Species
 import com.realcak3d.scanimal.core.GameEvent
 import com.realcak3d.scanimal.core.ScanInput
 import com.realcak3d.scanimal.core.Sex
@@ -105,12 +110,26 @@ object Feeder {
     fun feed(repo: GameRepository, input: ScanInput): List<GameEvent> {
         val food = FoodFactory.fromScan(input)
         return repo.act { now ->
-            val pre = mutableListOf<GameEvent>()
             if (!g.buddy.hatched) {
-                val name = g.buddy.name.ifBlank { listOf("Blip", "Pixel", "Bloop", "Zap", "Byte", "Pip").random() }
-                pre += hatch(name, g.buddy.sex.takeIf { g.buddy.name.isNotBlank() } ?: Sex.entries.random(), now)
-            }
-            pre + feed(food, now)
+                val warm = warmEgg(now, 120_000L)
+                if (!g.buddy.hatched) return@act listOf(GameEvent.Say("*the egg soaks up the energy of ${food.name}* (−2 min)", Anim.SPARKLE))
+                warm + feed(food, now)
+            } else feed(food, now)
         }
+    }
+
+    /** Friend link codes and message postcards are handled instead of eaten. Returns null for normal codes. */
+    fun special(repo: GameRepository, raw: String): List<GameEvent>? {
+        Codec.parseLink(raw)?.let { card -> return repo.act { now -> addFriend(card, now, viaLink = true).ifEmpty { listOf(GameEvent.Say("${card.name} is already our friend! Updated their card.", Anim.HAPPY)) } } }
+        Codec.parsePostcard(raw)?.let { pc ->
+            return repo.act { now ->
+                if (pc.toId.isNotBlank() && pc.toId != g.myId) return@act listOf(GameEvent.Say("That postcard is for someone else!", Anim.SAD))
+                if (g.friends.none { it.id == pc.fromId }) {
+                    addFriend(Friend(pc.fromId, pc.fromName.ifBlank { "Pen pal" }, "", Species.BLOB, Sex.MYSTERY, 200f, Pattern.PLAIN, 1, null, now), now, true)
+                }
+                addMessage(pc.fromId, pc.text, false, now)
+            }
+        }
+        return null
     }
 }

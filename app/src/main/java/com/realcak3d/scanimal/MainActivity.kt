@@ -16,6 +16,10 @@ import com.realcak3d.scanimal.sensors.Feeder
 import com.realcak3d.scanimal.sensors.SensorHub
 import com.realcak3d.scanimal.ui.ScanimalRoot
 import com.realcak3d.scanimal.ui.ScanimalTheme
+import com.realcak3d.scanimal.ui.Pal
+import com.realcak3d.scanimal.ui.Themes
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -37,6 +41,9 @@ class MainActivity : ComponentActivity() {
         nfc = NfcAdapter.getDefaultAdapter(this)
         lifecycleScope.launch { repo.events.collect { hub.react(listOf(it)) } }
         setContent {
+            val game by repo.state.collectAsState()
+            val theme = Themes.byId(game.settings.theme)
+            if (Pal.theme !== theme) Pal.theme = theme
             ScanimalTheme {
                 ScanimalRoot(repo = repo, hub = hub, hasNfc = nfc != null)
             }
