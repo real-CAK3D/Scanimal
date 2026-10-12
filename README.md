@@ -64,7 +64,7 @@ Get `Scanimal-x.y.z.apk` from [Releases](../../releases/latest). Open it on your
 
 Requires JDK 17+ and the Android SDK (compileSdk 35, minSdk 26).
 
-**Release:** push a tag like `v1.0.1`. GitHub Actions then builds a signed APK and publishes a GitHub Release, and installed apps pick it up through the in-app updater.
+**Release:** change `version.txt` (for example to `1.0.1`) and push to `main`. GitHub Actions then builds a signed APK and publishes a GitHub Release `v1.0.1`, and installed apps pick it up through the in-app updater. Pushing a `v*` tag works too.
 
 **Signing:** CI uses the secrets `SCANIMAL_KEYSTORE` (path), `SCANIMAL_KEYSTORE_PASSWORD`, `SCANIMAL_KEY_ALIAS` and `SCANIMAL_KEY_PASSWORD` when they are set. Otherwise it falls back to the bundled hobby keystore `app/scanimal-release.jks` (password `scanimal`), so every release can update the last one. That key is public, so switch to your own before distributing widely. Note that changing keys means uninstalling once.
 

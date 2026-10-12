@@ -20,14 +20,26 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
-      - name: Version from tag
+      - name: Version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            echo "SCANIMAL_VERSION_NAME=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+            V="${GITHUB_REF_NAME#v}"
           else
-            echo "SCANIMAL_VERSION_NAME=0.0.${GITHUB_RUN_NUMBER}-dev" >> $GITHUB_ENV
+            V="$(tr -d '[:space:]' < version.txt)"
           fi
-          echo "SCANIMAL_VERSION_CODE=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+          echo "SCANIMAL_VERSION_CODE=$((100 + GITHUB_RUN_NUMBER))" >> $GITHUB_ENV
+          # Publish when version.txt names a version that has no release yet (pushes to main only).
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "PUBLISH=true" >> $GITHUB_ENV
+          elif [[ "$GITHUB_REF" == "refs/heads/main" ]] && ! gh release view "v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "PUBLISH=true" >> $GITHUB_ENV
+          else
+            echo "PUBLISH=false" >> $GITHUB_ENV
+            [[ "$GITHUB_REF" == "refs/heads/main" ]] || V="$V-dev.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "SCANIMAL_VERSION_NAME=$V" >> $GITHUB_ENV
       - name: Unit tests
         run: ./gradlew --no-daemon testDebugUnitTest
       - name: Build APK
@@ -39,8 +51,11 @@ jobs:
           name: Scanimal-${{ env.SCANIMAL_VERSION_NAME }}
           path: Scanimal-*.apk
       - name: Publish GitHub release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: env.PUBLISH == 'true'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ env.SCANIMAL_VERSION_NAME }}
+          target_commitish: ${{ github.sha }}
+          name: Scanimal ${{ env.SCANIMAL_VERSION_NAME }}
           files: Scanimal-*.apk
           generate_release_notes: true
