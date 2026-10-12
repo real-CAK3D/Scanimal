@@ -299,3 +299,18 @@ class FeatureTest {
         assertTrue(e.onBump(1.2f, now + 100).isEmpty(), "rate limited")
     }
 }
+
+class AdvertTest {
+    @Test fun roundTrip() {
+        val f = Friend("AB12CD34", "Mochiko!", "Sam", Species.CAT, Sex.FEMALE, 30f, Pattern.SPOTS, 12, "crown", 0)
+        val bytes = BuddyAdvert.encode(f)
+        assertTrue(bytes.size <= 24, "fits legacy advert (${bytes.size})")
+        val back = BuddyAdvert.decode(bytes)!!
+        assertEquals("AB12CD34", back.id); assertEquals("Mochiko!", back.name); assertEquals(Species.CAT, back.species)
+        assertEquals(12, back.level); assertEquals("crown", back.accessory); assertTrue(kotlin.math.abs(back.hue - 30f) < 2f)
+        assertNull(BuddyAdvert.decode(byteArrayOf(1, 2, 3)))
+        val long = BuddyAdvert.encode(f.also { it.name = "Ünïcödé Name" })
+        assertTrue(long.size <= 24)
+        assertNotNull(BuddyAdvert.decode(long))
+    }
+}

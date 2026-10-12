@@ -228,6 +228,7 @@ data class SignalInfo(
     val secured: Boolean = true,
     val classHint: Int = -1,      // Bluetooth major device class, if known
     val connected: Boolean = false,
+    val widthMhz: Int = 20,       // Wi-Fi channel width, for the spectrum view
 )
 
 enum class SignalKind { WIFI, BLUETOOTH, BLE, CELL }

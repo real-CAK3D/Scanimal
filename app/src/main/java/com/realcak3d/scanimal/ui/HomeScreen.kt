@@ -28,6 +28,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.withFrameMillis
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -68,6 +73,7 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
     val body by hub.body.readings.collectAsStateWithLifecycle()
     val wifi by hub.wifi.results.collectAsStateWithLifecycle()
     val bt by hub.bt.devices.collectAsStateWithLifecycle()
+    val walk by com.realcak3d.scanimal.sensors.DistanceTracker.walk.collectAsStateWithLifecycle()
     val now = System.currentTimeMillis()
     val b = g.buddy
     var eggTaps by rememberSaveable { mutableIntStateOf(0) }
@@ -99,9 +105,35 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
         Box(Modifier.fillMaxWidth().height(330.dp)) {
             RoomBackdrop(Modifier.fillMaxSize(), night = repo.engine.isNight(now), asleep = b.asleep)
             val antenna = ((wifi.size + bt.size) / 25f).coerceIn(0f, 1f)
+            val physics = remember { BuddyPhysics() }
+            val bodyNow by rememberUpdatedState(body)
+            val physicsOn = g.settings.physics && b.hatched
+            val asleepNow by rememberUpdatedState(b.asleep)
+            var px by remember { mutableFloatStateOf(0f) }
+            var py by remember { mutableFloatStateOf(0f) }
+            var spin by remember { mutableFloatStateOf(0f) }
+            var squash by remember { mutableFloatStateOf(0f) }
+            LaunchedEffect(physicsOn) {
+                physics.onBump = { f -> hub.haptics.buzz((20 + f * 40).toLong(), (60 + f * 150).toInt().coerceAtMost(255)); repo.act { n -> onBump(f, n) } }
+                var last = 0L
+                while (true) {
+                    withFrameMillis { t ->
+                        val dt = if (last == 0L) 16L else t - last; last = t
+                        physics.step(dt, bodyNow.tiltX, bodyNow.linX, bodyNow.linY, physicsOn, asleepNow)
+                        px = physics.x; py = physics.y; spin = physics.spin; squash = physics.squash
+                    }
+                }
+            }
             BuddyView(
                 look = g.look(now), anim = speech.anim, animAt = speech.at,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().graphicsLayer {
+                    translationX = px * size.width * 0.32f
+                    translationY = -py * size.height * 0.45f
+                    rotationZ = spin.coerceIn(-720f, 720f) % 360f
+                    scaleX = 1f + squash * 0.18f
+                    scaleY = 1f - squash * 0.18f
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0.8f)
+                },
                 lookAt = Offset(-body.tiltX / 6f, body.tiltY / 9f - 0.3f),
                 antennaGlow = antenna,
                 onTap = {
@@ -139,7 +171,8 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
             b.dead -> GameOverPanel(repo, g)
             !b.hatched -> IncubationPanel(repo, g, go)
             else -> {
-                ActionRow(repo, hub, g, go)
+                if (walk.active) WalkCard(repo, walk)
+                ActionRow(repo, hub, g, go, walk.active)
                 Spacer(Modifier.height(10.dp))
                 Panel(Modifier.padding(horizontal = 12.dp), title = "Vitals") {
                     val s = b.stats
@@ -221,12 +254,15 @@ fun RoomBackdrop(modifier: Modifier, night: Boolean, asleep: Boolean) {
 private data class Act(val icon: String, val label: String, val onClick: () -> Unit)
 
 @Composable
-private fun ActionRow(repo: GameRepository, hub: SensorHub, g: GameData, go: (Screen) -> Unit) {
+private fun ActionRow(repo: GameRepository, hub: SensorHub, g: GameData, go: (Screen) -> Unit, walking: Boolean) {
     val b = g.buddy
     val darkRoom = hub.body.readings.value.lux in 0f..5f
     val actions = buildList {
         add(Act("🍔", "Feed") { go(Screen.SCAN) })
         add(Act("🥣", "Kibble ${g.inventory["kibble"] ?: 0}") { repo.act { n -> useItem("kibble", n) } })
+        add(Act("🦮", if (walking) "End walk" else "Walk") {
+            if (walking) com.realcak3d.scanimal.sensors.DistanceTracker.stopWalk(repo) else com.realcak3d.scanimal.sensors.DistanceTracker.startWalk(repo)
+        })
         add(Act("🎮", "Play") { go(Screen.GAMES) })
         add(Act("🧽", if (b.poops > 0) "Clean ${b.poops}💩" else "Bathe") { repo.act { n -> clean(n) } })
         add(Act(if (b.asleep) "☀️" else "🌙", if (b.asleep) "Wake" else "Sleep") { repo.act { n -> toggleSleep(n, darkRoom) } })
@@ -257,6 +293,31 @@ private fun ActionRow(repo: GameRepository, hub: SensorHub, g: GameData, go: (Sc
                 repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
+    }
+}
+
+@Composable
+private fun WalkCard(repo: GameRepository, walk: com.realcak3d.scanimal.sensors.WalkSession) {
+    var tick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(1000); tick++ } }
+    val secs = ((System.currentTimeMillis() - walk.startedAt) / 1000).toInt() + tick * 0
+    val pace = if (walk.meters > 20) (secs / 60.0) / (walk.meters / 1000.0) else 0.0
+    Panel(Modifier.padding(horizontal = 12.dp, vertical = 6.dp), title = "🦮 Walk in progress") {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            WalkStat("Distance", repo.engine.fmtDist(walk.meters.toLong()))
+            WalkStat("Time", "%d:%02d".format(secs / 60, secs % 60))
+            WalkStat("Steps", "${walk.steps}")
+            WalkStat("Pace", if (pace > 0) "%.1f min/km".format(pace) else "—")
+        }
+        Text("Distance comes from GPS, so walking outside works best. Turn on Background mode in Settings to keep counting with the screen off.", color = Pal.sub, fontSize = 11.sp)
+    }
+}
+
+@Composable
+private fun WalkStat(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, color = Pal.mint, fontSize = 17.sp, fontWeight = FontWeight.Bold, fontFamily = Mono)
+        Text(label, color = Pal.sub, fontSize = 11.sp)
     }
 }
 

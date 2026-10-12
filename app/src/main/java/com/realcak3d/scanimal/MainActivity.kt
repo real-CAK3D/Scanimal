@@ -1,6 +1,7 @@
 package com.realcak3d.scanimal
 
 import android.Manifest
+import android.content.Intent
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.Ndef
@@ -40,6 +41,7 @@ class MainActivity : ComponentActivity() {
         hub = SensorHub(this, repo)
         nfc = NfcAdapter.getDefaultAdapter(this)
         lifecycleScope.launch { repo.events.collect { hub.react(listOf(it)) } }
+        handleShare(intent)
         setContent {
             val game by repo.state.collectAsState()
             val theme = Themes.byId(game.settings.theme)
@@ -50,8 +52,21 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleShare(intent)
+    }
+
+    /** Link codes and postcards shared from other apps ("Share → Scanimal"). */
+    private fun handleShare(i: Intent?) {
+        if (i?.action != Intent.ACTION_SEND) return
+        val text = i.getStringExtra(Intent.EXTRA_TEXT) ?: return
+        Feeder.special(repo, text)
+    }
+
     override fun onResume() {
         super.onResume()
+        if (repo.data.settings.backgroundMode) com.realcak3d.scanimal.work.BuddyService.start(this)
         // Catch up on time away (protected from dying while the app was closed for < 48 h).
         val away = repo.act { now -> tick(now, offline = true) }
         if (away.none { it is com.realcak3d.scanimal.core.GameEvent.Say }) repo.say(repo.engine.ambient(System.currentTimeMillis()).text)

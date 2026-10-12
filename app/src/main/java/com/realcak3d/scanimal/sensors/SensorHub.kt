@@ -25,20 +25,29 @@ class SensorHub(ctx: Context, val repo: GameRepository) {
     val body = BodySensors(ctx)
     val sound = SoundMeter(ctx)
     val haptics = Haptics(ctx)
+    val cells = CellRadar(ctx)
+    val link = BuddyLink(ctx, repo)
+
+    private var lastAlt = 0L
 
     init {
         wifi.onBatch = { list -> repo.act { now -> onWifiScan(list, now) } }
         bt.onBatch = { list -> repo.act { now -> onBluetooth(list, now) } }
         gnss.onSatellites = { sats -> repo.act { now -> onSatellites(sats, now) } }
-        gnss.onLocation = { loc -> if (loc.hasAltitude()) repo.act { now -> onAltitude(loc.altitude, now) } }
+        gnss.onLocation = { loc ->
+            DistanceTracker.feed(repo, loc)
+            if (loc.hasAltitude() && System.currentTimeMillis() - lastAlt > 60_000) { lastAlt = System.currentTimeMillis(); repo.act { now -> onAltitude(loc.altitude, now) } }
+        }
         body.onShake = { haptics.buzz(40, 160); repo.act { now -> onShake(now) } }
-        body.onSteps = { n -> repo.act { now -> onSteps(n, now) } }
+        body.onSteps = { n -> DistanceTracker.addSteps(n); repo.act { now -> onSteps(n, now) } }
         body.onDark = { repo.act { now -> onDark(now) } }
         body.onPeekaboo = { repo.act { now -> onPeekaboo(now) } }
         body.onCharging = { repo.act { now -> onCharging(now) } }
         body.onMagnet = { m -> repo.act { now -> onMagnet(m, now) } }
         body.onAltitude = { alt -> repo.act { now -> onAltitude(alt, now) } }
         sound.onLoud = { repo.act { now -> onLoudSound(now) } }
+        cells.onBatch = { list -> repo.act { now -> onCells(list, now) } }
+        bt.onBuddyAdvert = { data, rssi, addr -> link.onAdvert(data, rssi, addr) }
     }
 
     fun applySettings() {
@@ -50,16 +59,16 @@ class SensorHub(ctx: Context, val repo: GameRepository) {
     /** Foreground: the buddy is always sniffing around. */
     fun startAll() {
         applySettings()
-        body.start(); wifi.start(); bt.start(); gnss.start()
+        body.start(); wifi.start(); bt.start(); gnss.start(); cells.start(); link.start()
     }
 
     fun stopAll() {
-        body.stop(); wifi.stop(); bt.stop(); gnss.stop(); sound.stop()
+        body.stop(); wifi.stop(); bt.stop(); gnss.stop(); sound.stop(); cells.stop(); link.stop()
     }
 
     /** Re-try anything that was blocked on a permission. */
     fun refreshPermissions() {
-        body.restart(); wifi.stop(); wifi.start(); bt.stop(); bt.start(); gnss.stop(); gnss.start()
+        body.restart(); wifi.stop(); wifi.start(); bt.stop(); bt.start(); gnss.stop(); gnss.start(); cells.stop(); cells.start(); link.stop(); link.start()
     }
 
     fun react(events: List<GameEvent>) {

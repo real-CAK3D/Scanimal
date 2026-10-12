@@ -677,12 +677,18 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
     // ---------------------------------------------------------------- walks
 
     /** Called with distance actually moved (GPS), e.g. while on a walk or in background mode. */
-    fun onDistance(meters: Double, now: Long): List<GameEvent> {
+    fun onDistance(meters: Double, now: Long, onFoot: Boolean = true): List<GameEvent> {
         if (meters <= 0 || meters > 2_000) return emptyList() // ignore GPS jumps
         val ev = mutableListOf<GameEvent>()
         val before = g.count(C.DISTANCE_M)
         g.bump(C.DISTANCE_M, meters.toLong().coerceAtLeast(1))
         val after = g.count(C.DISTANCE_M)
+        if (!onFoot) {
+            // Riding in a car/bus/train: counts toward distance, but no exercise.
+            if (b.hatched && after / 5000 > before / 5000) { ev += GameEvent.Say(listOf("Road trip! 🚗 ${fmtDist(after)} traveled!", "Wheee, we're going fast!", "Are we there yet?").random(rnd), Anim.HAPPY); ev += gainXp(5, now) }
+            ev += checkAchievements(now)
+            return ev
+        }
         if (b.hatched && !b.asleep) {
             val k = meters / 100.0
             val sporty = if (b.personality == Personality.SPORTY) 1.5 else 1.0

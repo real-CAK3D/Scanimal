@@ -35,6 +35,8 @@ data class BodyReadings(
     val tiltX: Float = 0f,            // gravity-ish, for eye tracking / games
     val tiltY: Float = 0f,
     val accel: Float = 0f,            // linear acceleration magnitude
+    val linX: Float = 0f,             // linear acceleration (gravity removed), device axes
+    val linY: Float = 0f,
     val lux: Float = -1f,
     val proximityNear: Boolean = false,
     val pressureHpa: Float = -1f,
@@ -117,6 +119,16 @@ class BodySensors(private val ctx: Context) : SensorEventListener {
         ContextCompat.registerReceiver(ctx, batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
+    /** Background service: only the cheap sensors (steps + battery). */
+    fun startStepsOnly() {
+        if (running) return
+        running = true
+        if (steps != null && (Build.VERSION.SDK_INT < 29 || ctx.granted(Manifest.permission.ACTIVITY_RECOGNITION))) {
+            sm.registerListener(this, steps, SensorManager.SENSOR_DELAY_NORMAL)
+        }
+        ContextCompat.registerReceiver(ctx, batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
+    }
+
     /** Call after the activity-recognition permission is granted. */
     fun restart() { stop(); start() }
 
@@ -154,7 +166,7 @@ class BodySensors(private val ctx: Context) : SensorEventListener {
                 for (i in 0..2) gravity[i] = a * gravity[i] + (1 - a) * e.values[i]
                 val lx = e.values[0] - gravity[0]; val ly = e.values[1] - gravity[1]; val lz = e.values[2] - gravity[2]
                 val mag = sqrt(lx * lx + ly * ly + lz * lz)
-                _r.value = _r.value.copy(tiltX = gravity[0], tiltY = gravity[1], accel = mag)
+                _r.value = _r.value.copy(tiltX = gravity[0], tiltY = gravity[1], accel = mag, linX = lx, linY = ly)
                 if (mag > 14f && now - lastShake > 900) { lastShake = now; onShake?.invoke() }
             }
             Sensor.TYPE_LIGHT -> {
