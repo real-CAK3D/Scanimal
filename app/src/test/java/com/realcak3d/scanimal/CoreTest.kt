@@ -326,3 +326,77 @@ class DspTest {
         assertEquals(6, Dsp.wifiChannel(2437)); assertEquals(36, Dsp.wifiChannel(5180)); assertEquals(1, Dsp.wifiChannel(5955))
     }
 }
+
+class EnvTest {
+    private val t0 = 1_760_000_000_000L
+    private fun hatched(): Engine {
+        val e = Engine(GameData(), Random(5)); e.newEgg(t0)
+        e.layEgg("Rex", Sex.MALE, Species.DINO, t0); e.tick(t0 + 16 * 60_000L)
+        return e
+    }
+
+    @Test fun biomeWeatherMotion() {
+        assertEquals(Biome.WILDERNESS, Env.biomeFor(0))
+        assertEquals(Biome.CITY, Env.biomeFor(20))
+        assertEquals(Biome.HOTSPOT, Env.biomeFor(50))
+        assertEquals(Weather.STORMY, Env.weatherFor(1005f, 1013f))
+        assertEquals(Weather.CLEAR, Env.weatherFor(1016f, 1013f))
+        assertEquals(Weather.UNKNOWN, Env.weatherFor(0f, 1013f))
+        assertEquals(Motion.VEHICLE, Env.motionFor(12f, 0f, false))
+        assertEquals(Motion.RUNNING, Env.motionFor(0f, 150f, false))
+        assertEquals(Motion.WALKING, Env.motionFor(1.2f, 40f, false))
+        assertEquals(Motion.POCKET, Env.motionFor(0f, 0f, true))
+        assertEquals("mountains", Env.altitudeZone(2000.0))
+    }
+
+    @Test fun environmentAwardsStickers() {
+        val e = hatched()
+        val before = e.g.stickers.size
+        e.onEnvironment(50, 1013f, 0f, 0f, false, t0 + 17 * 60_000L)       // hotspot biome
+        e.onEnvironment(50, 1004f, 0f, 0f, false, t0 + 40 * 60_000L)       // storm
+        e.onEnvironment(50, 1004f, 12f, 0f, false, t0 + 60 * 60_000L)      // vehicle
+        assertTrue(e.g.stickers.size > before)
+        assertTrue("biome:HOTSPOT" in e.g.stickers)
+        assertTrue("motion:VEHICLE" in e.g.stickers)
+        assertTrue(e.g.stickers.any { it.startsWith("wx:") })
+        assertTrue("sp:DINO" in e.g.stickers, "species sticker on hatch")
+    }
+
+    @Test fun questsRollAndClaim() {
+        val e = hatched()
+        e.rollQuestsIfNeeded(t0 + 17 * 60_000L)
+        assertEquals(3, e.g.quests.size)
+        // Force one quest to completion by feeding its counter.
+        val q = e.g.quests.first()
+        e.g.counters[q.counterKey] = q.baseline + q.target
+        assertTrue(Quests.done(q, e.g))
+        val coins = e.g.coins
+        val ev = e.claimQuest(q.id, t0 + 20 * 60_000L)
+        assertTrue(ev.isNotEmpty())
+        assertTrue(e.g.coins > coins)
+        assertTrue(e.g.quests.first { it.id == q.id }.claimed)
+        assertEquals(1L, e.g.count(C.QUESTS_DONE))
+        assertTrue(e.claimQuest(q.id, t0).isEmpty(), "can't double-claim")
+    }
+
+    @Test fun newFieldsSurviveCodec() {
+        val e = hatched()
+        e.onEnvironment(20, 1013f, 1.2f, 40f, false, t0 + 20 * 60_000L)
+        e.mapDiscovery(40.0, -74.0, "wifi", "HomeNet", t0)
+        e.rollQuestsIfNeeded(t0)
+        val back = Codec.decode(Codec.encode(e.g))
+        assertEquals(Codec.encode(e.g), Codec.encode(back))
+        assertEquals(e.g.stickers, back.stickers)
+        assertEquals(1, back.discoveries.size)
+        assertEquals(3, back.quests.size)
+        assertEquals(e.g.biome, back.biome)
+    }
+
+    @Test fun stickerRegistryCoversEnums() {
+        assertTrue(Stickers.all.size > 40)
+        assertNotNull(Stickers.byId["food:GROCERY"])
+        assertNotNull(Stickers.byId["dev:EARBUDS"])
+        assertNotNull(Stickers.byId["sp:ALIEN"])
+    }
+}
+

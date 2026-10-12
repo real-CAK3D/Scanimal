@@ -142,6 +142,7 @@ fun SettingsScreen(repo: GameRepository, hub: SensorHub, requestPermissions: () 
                 set { discoverable = v }
                 if (v) hub.link.start() else hub.link.stop()
             }
+            Toggle("Map trail", "Pin where you find each signal (stored only on this phone)", s.mapTrail) { v -> set { mapTrail = v } }
             Toggle("Metric units", "Kilometers instead of miles", s.metric) { v -> set { metric = v } }
             Toggle("Look up product names online", "Asks Open Food Facts what a grocery barcode is", s.onlineProductLookup) { v -> set { onlineProductLookup = v } }
         }

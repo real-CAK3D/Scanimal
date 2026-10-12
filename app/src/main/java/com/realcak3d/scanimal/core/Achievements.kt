@@ -1,6 +1,6 @@
 package com.realcak3d.scanimal.core
 
-enum class AchCategory(val label: String) { SCAN("Scanning"), SIGNALS("Signals"), DEVICES("Devices"), SKY("Sky"), WALKS("Walks"), FRIENDS("Friends"), CARE("Care"), LIFE("Life"), PLAY("Play"), SENSORS("Sensors") }
+enum class AchCategory(val label: String) { SCAN("Scanning"), SIGNALS("Signals"), DEVICES("Devices"), SKY("Sky"), WALKS("Walks"), FRIENDS("Friends"), CARE("Care"), LIFE("Life"), PLAY("Play"), SENSORS("Sensors"), EXPLORE("Explorer") }
 
 class Achievement(
     val id: String,
@@ -115,6 +115,18 @@ object Achievements {
         counter("messages_10", "Chatty Cathy", "Send 10 messages to friends.", "✉️", AchCategory.FRIENDS, C.MESSAGES, 10, 30),
         counter("playdates_10", "Playdate Pro", "Have 10 playdates.", "🧸", AchCategory.FRIENDS, C.PLAYDATES, 10, 40),
         counter("warm_egg", "Incubator", "Warm an egg 20 times.", "🔥", AchCategory.LIFE, C.HATCH_WARMS, 20, 15, secret = true),
+        // Explorer
+        counter("quest_1", "First Mission", "Finish a daily quest.", "✅", AchCategory.EXPLORE, C.QUESTS_DONE, 1, 15),
+        counter("quest_25", "Questmaster", "Finish 25 daily quests.", "📋", AchCategory.EXPLORE, C.QUESTS_DONE, 25, 80),
+        counter("quest_100", "Legendary Adventurer", "Finish 100 daily quests.", "🗺️", AchCategory.EXPLORE, C.QUESTS_DONE, 100, 250),
+        Achievement("sticker_25", "Sticker Starter", "Collect 25 stickers.", "🏷️", AchCategory.EXPLORE, 40, target = 25) { it.stickers.size.toLong() },
+        Achievement("sticker_half", "Album Builder", "Collect half the stickers.", "📔", AchCategory.EXPLORE, 100, target = (Stickers.all.size / 2).toLong()) { it.stickers.size.toLong() },
+        Achievement("sticker_all", "Completionist", "Collect every sticker.", "💯", AchCategory.EXPLORE, 500, target = Stickers.all.size.toLong()) { it.stickers.size.toLong() },
+        counter("storm", "Storm Chaser", "Be out when a storm rolls in.", "⛈️", AchCategory.EXPLORE, C.STORMS, 1, 25, secret = true),
+        Achievement("biomes_all", "Globetrotter", "Visit every kind of place.", "🌍", AchCategory.EXPLORE, 100, target = Biome.entries.size.toLong()) { g -> g.stickers.count { it.startsWith("biome:") }.toLong() },
+        counter("run_5k", "Runner", "Run 5 km in total.", "🏃", AchCategory.EXPLORE, C.RUN_METERS, 5_000, 60),
+        counter("firefly", "Firefly Friend", "Light the torch firefly 10 times.", "🪰", AchCategory.EXPLORE, C.FIREFLIES, 10, 25),
+        counter("mapped_50", "Cartographer", "Pin 50 discoveries on the map.", "📍", AchCategory.EXPLORE, C.DISCOVERIES_MAPPED, 50, 40),
     )
 
     val byId = all.associateBy { it.id }

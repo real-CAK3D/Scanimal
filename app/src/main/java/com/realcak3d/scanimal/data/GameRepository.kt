@@ -108,6 +108,11 @@ class GameRepository private constructor(context: Context) {
         data.devices.clear(); data.devices.putAll(src.devices)
         data.friends.clear(); data.friends.addAll(src.friends)
         data.lastVersionCheck = src.lastVersionCheck
+        data.stickers.clear(); data.stickers.addAll(src.stickers)
+        data.discoveries.clear(); data.discoveries.addAll(src.discoveries)
+        data.quests.clear(); data.quests.addAll(src.quests)
+        data.questDay = src.questDay; data.weather = src.weather; data.biome = src.biome; data.motion = src.motion
+        data.bootAt = src.bootAt; data.pressureBaseline = src.pressureBaseline
     }
 
     fun resetEverything() {

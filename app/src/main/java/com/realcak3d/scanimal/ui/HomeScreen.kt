@@ -101,6 +101,7 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
             XpBar(b.xp, b.xpToNext(), Modifier.padding(horizontal = 16.dp))
         }
         UpdateBanner(go)
+        if (b.hatched) EnvChips(repo)
 
         // Stage + speech
         Box(Modifier.fillMaxWidth().height(330.dp)) {
@@ -196,6 +197,24 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
                     StatBar("Discipline", "🎖️", s.discipline, Pal.amber)
                     Spacer(Modifier.height(4.dp))
                     Text("${b.personality.label}: ${b.personality.blurb}", color = Pal.sub, fontSize = 12.sp)
+                }
+                Spacer(Modifier.height(10.dp))
+                val claimable = g.quests.count { com.realcak3d.scanimal.core.Quests.done(it, g) && !it.claimed }
+                Panel(Modifier.padding(horizontal = 12.dp), title = "Today's quests") {
+                    if (g.quests.isEmpty()) Text("Fresh quests load as you play.", color = Pal.sub, fontSize = 13.sp)
+                    g.quests.forEach { q ->
+                        val prog = com.realcak3d.scanimal.core.Quests.progress(q, g)
+                        Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("${if (q.claimed) "✅" else if (prog >= q.target) "🎁" else "•"} ${q.title}", color = Pal.text, fontSize = 12.sp)
+                            Text("$prog/${q.target}", color = Pal.sub, fontSize = 12.sp, fontFamily = Mono)
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SmallBtn(if (claimable > 0) "🎁 Claim ($claimable)" else "🎯 Quests", if (claimable > 0) Pal.mint else Pal.panel2) { go(Screen.QUESTS) }
+                        SmallBtn("📔 Album", Pal.panel2) { go(Screen.ALBUM) }
+                        SmallBtn("🖥️ HUD", Pal.panel2) { go(Screen.HUD) }
+                    }
                 }
             }
         }

@@ -297,6 +297,11 @@ fun LabScreen(repo: GameRepository, hub: SensorHub) {
             Text("Cover the top of the phone and uncover it for peekaboo. Darkness makes your buddy sleepy. Plugging in the charger is a snack!", color = Pal.sub, fontSize = 12.sp)
         }
         Spacer(Modifier.height(10.dp))
+        Panel(Modifier.padding(horizontal = 12.dp), title = "Firefly torch") {
+            Text(if (hub.torch.available) "Tap to blink the camera flash — your buddy chases the firefly light." else "This phone has no camera flash.", color = Pal.sub, fontSize = 13.sp)
+            if (hub.torch.available) { Spacer(Modifier.height(8.dp)); BigButton(if (hub.torch.on) "🔦 Firefly ON (tap to toggle)" else "🪰 Light the firefly", if (hub.torch.on) Pal.amber else Pal.mint, Modifier.fillMaxWidth()) { hub.fireflyTap() } }
+        }
+        Spacer(Modifier.height(10.dp))
         Panel(Modifier.padding(horizontal = 12.dp), title = "Radios") {
             val wifi by hub.wifi.results.collectAsStateWithLifecycle()
             val bt by hub.bt.devices.collectAsStateWithLifecycle()

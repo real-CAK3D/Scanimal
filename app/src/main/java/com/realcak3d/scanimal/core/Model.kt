@@ -21,7 +21,7 @@ enum class Stage(val label: String, val minAgeHours: Double, val scale: Float) {
 
     companion object {
         fun forAgeHours(hours: Double): Stage =
-            entries.filter { it != EGG }.last { hours >= it.minAgeHours }
+            entries.filter { it != EGG }.lastOrNull { hours >= it.minAgeHours } ?: BABY
     }
 }
 
@@ -216,6 +216,7 @@ data class Settings(
     var physics: Boolean = true,
     var showVisitors: Boolean = true,
     var ambientChatter: Boolean = true,
+    var mapTrail: Boolean = true,
 )
 
 /** A signal seen by the radar (Wi-Fi network or Bluetooth device). */
@@ -271,6 +272,15 @@ class GameData(
     val devices: MutableMap<String, DeviceRecord> = mutableMapOf(),
     val friends: MutableList<Friend> = mutableListOf(),
     var lastVersionCheck: Long = 0L,
+    val stickers: MutableSet<String> = mutableSetOf(),
+    val discoveries: MutableList<Discovery> = mutableListOf(),
+    val quests: MutableList<Quest> = mutableListOf(),
+    var questDay: Long = -1L,
+    var weather: Weather = Weather.UNKNOWN,
+    var biome: Biome = Biome.OUTDOORS,
+    var motion: Motion = Motion.STILL,
+    var bootAt: Long = 0L,
+    var pressureBaseline: Float = 0f,
 ) {
     fun count(key: String): Long = counters[key] ?: 0L
     fun bump(key: String, by: Long = 1) { counters[key] = count(key) + by }
@@ -345,4 +355,44 @@ object C {
     const val PLAYDATES = "playdates"
     const val BUMPS = "wall_bumps"
     const val HATCH_WARMS = "hatch_warms"
+    const val QUESTS_DONE = "quests_done"
+    const val STICKERS = "stickers"
+    const val STORMS = "storms_weathered"
+    const val BIOMES = "biomes_visited"
+    const val RUN_METERS = "run_meters"
+    const val RIDE_METERS = "ride_meters"
+    const val POCKET_HOURS = "pocket_hours"
+    const val FIREFLIES = "fireflies"
+    const val SIG_MOTION = "significant_motions"
+    const val HOT = "hot_readings"
+    const val COLD = "cold_readings"
+    const val SUNNY = "sunny_moments"
+    const val MOONLIGHT = "moonlight_moments"
+    const val DISCOVERIES_MAPPED = "discoveries_mapped"
+    const val DEV_SNIFFS = "dev_sniffs"
 }
+
+/** Weather the buddy infers from the barometer trend (no internet needed). */
+enum class Weather(val label: String, val icon: String) {
+    UNKNOWN("Unknown", "❓"), CLEAR("Clear", "☀️"), FAIR("Fair", "🌤️"), CLOUDY("Clouds rolling in", "☁️"),
+    STORMY("Storm coming", "⛈️"), CLEARING("Clearing up", "🌈");
+}
+
+/** Where you physically are, guessed from how many devices are around. */
+enum class Biome(val label: String, val icon: String, val blurb: String) {
+    WILDERNESS("Wilderness", "🏕️", "Hardly any signals out here. Peaceful!"),
+    OUTDOORS("Outdoors", "🌳", "A few signals drifting by."),
+    SUBURB("Neighborhood", "🏘️", "Cozy, a handful of networks around."),
+    CITY("City", "🏙️", "So many signals! The buddy is overstimulated."),
+    HOTSPOT("Signal jungle", "🌐", "A wall of networks. Signal heaven!");
+}
+
+/** How the phone (and buddy) is moving. */
+enum class Motion(val label: String, val icon: String) {
+    STILL("Resting", "🧘"), POCKET("In your pocket", "👖"), WALKING("Walking", "🚶"),
+    RUNNING("Running", "🏃"), CYCLING("Cycling", "🚲"), VEHICLE("Riding", "🚗");
+}
+
+data class Discovery(val lat: Double, val lon: Double, val kind: String, val label: String, val time: Long)
+
+data class Quest(val id: String, val title: String, val counterKey: String, val baseline: Long, val target: Long, val reward: Int, var claimed: Boolean = false)

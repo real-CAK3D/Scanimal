@@ -85,7 +85,12 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
         b.stats = Stats()
         if (g.created == 0L) g.created = now
         g.log(now, "🐣", "${b.name} hatched! Generation ${b.generation}.")
-        return listOf(say(Topic.HATCH, now, Anim.HATCH)) + checkAchievements(now)
+        val ev = mutableListOf<GameEvent>(say(Topic.HATCH, now, Anim.HATCH))
+        award("sp:${b.species.name}", now, ev)
+        if (g.bootAt == 0L) g.bootAt = now
+        rollQuestsIfNeeded(now)
+        ev += checkAchievements(now)
+        return ev
     }
 
     // ---------------------------------------------------------------- time
@@ -273,6 +278,10 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
                 else -> {}
             }
             if (food.rarity.stars >= 3) g.favoriteFood = food.name
+        }
+        if (food.family != FoodFamily.PANTRY) {
+            award("food:${food.family.name}", now, ev)
+            award("rarity:${food.rarity.name}", now, ev)
         }
         ev += GameEvent.Ate(food, mult)
         val topic = when {
@@ -568,6 +577,7 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
         if (sats.isEmpty()) return ev
         g.setMax(C.SATS_MAX, sats.size.toLong())
         val newSystems = sats.map { it.constellation }.toSet().filter { g.constellations.add(it) }
+        for (c in sats.map { it.constellation }.toSet()) award("sat:$c", now, ev)
         if (newSystems.isNotEmpty()) {
             g.log(now, "🛰️", "First contact with ${newSystems.joinToString()} satellites!")
             if (b.hatched) ev += GameEvent.Say("New space friends: ${newSystems.joinToString()}! ${Phrases.emotes.random(rnd)}", Anim.SPARKLE)
@@ -669,6 +679,7 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
         g.setMax(C.ALTITUDE_MAX, meters.toLong())
         val ev = mutableListOf<GameEvent>()
         if (meters > 1000 && wasMax < 1000) ev += say(Topic.HIGH_ALTITUDE, now, Anim.SPARKLE)
+        if (meters > 1500) award("special:mountain", now, ev)
         ev += checkAchievements(now)
         return ev
     }
@@ -684,11 +695,13 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
         g.bump(C.DISTANCE_M, meters.toLong().coerceAtLeast(1))
         val after = g.count(C.DISTANCE_M)
         if (!onFoot) {
+            g.bump(C.RIDE_METERS, meters.toLong())
             // Riding in a car/bus/train: counts toward distance, but no exercise.
             if (b.hatched && after / 5000 > before / 5000) { ev += GameEvent.Say(listOf("Road trip! 🚗 ${fmtDist(after)} traveled!", "Wheee, we're going fast!", "Are we there yet?").random(rnd), Anim.HAPPY); ev += gainXp(5, now) }
             ev += checkAchievements(now)
             return ev
         }
+        if (g.motion == Motion.RUNNING) g.bump(C.RUN_METERS, meters.toLong())
         if (b.hatched && !b.asleep) {
             val k = meters / 100.0
             val sporty = if (b.personality == Personality.SPORTY) 1.5 else 1.0
@@ -746,6 +759,7 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
             }
         }
         g.counters[C.DEVICE_TYPES] = g.devices.values.map { it.type }.toSet().size.toLong()
+        for (nt in newTypes) award("dev:${nt.name}", now, ev)
         if (newTypes.isNotEmpty() && b.hatched) {
             val t = newTypes.first()
             ev += GameEvent.Say("New kind of gadget: ${t.icon} ${t.label}! (${t.effect})", Anim.SPARKLE)
@@ -914,6 +928,136 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
         else { s.happiness += 1; ev += GameEvent.Say(listOf("Wheee!", "Boing!", "Again!", "*bounce bounce*", "This is fun!").random(rnd), Anim.HAPPY) }
         s.clampAll()
         ev += checkAchievements(now)
+        return ev
+    }
+
+
+    // ---------------------------------------------------------------- stickers, quests, environment
+
+    fun award(id: String, now: Long, events: MutableList<GameEvent>) {
+        if (!g.stickers.add(id)) return
+        g.bump(C.STICKERS)
+        val st = Stickers.byId[id]
+        events += GameEvent.Say("New sticker: ${st?.emoji ?: "⭐"} ${st?.name ?: id}!", Anim.SPARKLE)
+        g.log(now, st?.emoji ?: "⭐", "Collected a sticker: ${st?.name ?: id}.")
+        grantCoins(5, events)
+    }
+
+    fun rollQuestsIfNeeded(now: Long) {
+        val day = now / 86_400_000L
+        if (g.questDay == day && g.quests.isNotEmpty()) return
+        g.questDay = day
+        g.quests.clear()
+        g.quests.addAll(Quests.rollFor(day, g))
+    }
+
+    fun claimQuest(id: String, now: Long): List<GameEvent> {
+        val q = g.quests.firstOrNull { it.id == id } ?: return emptyList()
+        if (q.claimed || !Quests.done(q, g)) return emptyList()
+        q.claimed = true
+        g.bump(C.QUESTS_DONE)
+        val ev = mutableListOf<GameEvent>()
+        grantCoins(q.reward, ev)
+        ev += gainXp(q.reward, now)
+        ev += GameEvent.Say("Quest complete! ${q.title} ${Phrases.emotes.random(rnd)}", Anim.LEVEL_UP)
+        g.log(now, "✅", "Quest done: ${q.title} (+${q.reward} coins).")
+        ev += checkAchievements(now)
+        return ev
+    }
+
+    /** Called periodically with the current surroundings. Drives weather, biome and motion moods. */
+    fun onEnvironment(devicesInRange: Int, pressureHpa: Float, speedMps: Float, cadenceSpm: Float, pocket: Boolean, now: Long): List<GameEvent> {
+        val ev = mutableListOf<GameEvent>()
+        // Biome
+        val biome = Env.biomeFor(devicesInRange)
+        if (biome != g.biome) {
+            g.biome = biome
+            award("biome:${biome.name}", now, ev)
+            if (b.hatched && onceEvery("biome_say", now, 10 * 60_000L)) ev += GameEvent.Say("${biome.icon} ${biome.blurb}", Anim.NONE)
+            if (g.stickers.count { it.startsWith("biome:") } >= Biome.entries.size) g.setMax(C.BIOMES, Biome.entries.size.toLong())
+        }
+        // Weather (needs a barometer)
+        if (pressureHpa > 0f) {
+            if (g.pressureBaseline <= 0f) g.pressureBaseline = pressureHpa
+            g.pressureBaseline += (pressureHpa - g.pressureBaseline) * 0.02f  // slow baseline
+            val wx = Env.weatherFor(pressureHpa, g.pressureBaseline)
+            if (wx != Weather.UNKNOWN && wx != g.weather) {
+                val was = g.weather
+                g.weather = wx
+                award("wx:${wx.name}", now, ev)
+                if (wx == Weather.STORMY) { g.bump(C.STORMS); award("special:storm", now, ev); if (b.hatched) { s.happiness -= 4; s.clampAll() } }
+                if (was != Weather.UNKNOWN && b.hatched && onceEvery("wx_say", now, 15 * 60_000L)) {
+                    ev += GameEvent.Say(when (wx) {
+                        Weather.STORMY -> "The pressure's dropping... a storm is coming! ${wx.icon}"
+                        Weather.CLEARING -> "The air feels lighter. Clearing up! ${wx.icon}"
+                        Weather.CLEAR -> "What a clear day! ${wx.icon}"
+                        Weather.CLOUDY -> "Clouds rolling in. ${wx.icon}"
+                        else -> "Weather's changing. ${wx.icon}"
+                    }, if (wx == Weather.STORMY) Anim.SHOCK else Anim.HAPPY)
+                }
+            }
+        }
+        // Motion
+        val motion = Env.motionFor(speedMps, cadenceSpm, pocket)
+        if (motion != g.motion) {
+            g.motion = motion
+            award("motion:${motion.name}", now, ev)
+            when (motion) {
+                Motion.RUNNING -> if (b.hatched) { s.fitness += 2; s.happiness += 2 }
+                Motion.CYCLING -> if (b.hatched) s.fitness += 1
+                Motion.POCKET -> {}
+                else -> {}
+            }
+            s.clampAll()
+        }
+        if (motion == Motion.POCKET && !b.asleep && b.hatched && onceEvery("pocket_nap", now, 5 * 60_000L)) {
+            // Dark + still = probably in a pocket; let the buddy doze.
+            if (s.energy < 60) { b.asleep = true; b.sleptAt = now; ev += GameEvent.Say("*dozes off in the dark pocket* zzz", Anim.SLEEP) }
+        }
+        rollQuestsIfNeeded(now)
+        ev += checkAchievements(now)
+        return ev
+    }
+
+    /** Record where something was discovered (only when mapping is on). */
+    fun mapDiscovery(lat: Double, lon: Double, kind: String, label: String, now: Long) {
+        if (g.discoveries.size >= 2000) g.discoveries.removeAt(0)
+        g.discoveries.add(Discovery(lat, lon, kind, label, now))
+        g.bump(C.DISCOVERIES_MAPPED)
+    }
+
+    fun onSignificantMotion(now: Long): List<GameEvent> {
+        g.bump(C.SIG_MOTION)
+        if (!b.hatched || b.asleep) return emptyList()
+        return if (onceEvery("sigmotion", now, 60_000L)) listOf(say(Topic.SHAKEN, now, Anim.HAPPY)) else emptyList()
+    }
+
+    fun onAmbientTemp(celsius: Float, now: Long): List<GameEvent> {
+        if (!b.hatched || !onceEvery("temp", now, 20 * 60_000L)) return emptyList()
+        return when {
+            celsius >= 30 -> { g.bump(C.HOT); listOf(GameEvent.Say("Phew, it's warm (${celsius.toInt()}°C)! *fans self*", Anim.NONE)) }
+            celsius <= 2 -> { g.bump(C.COLD); listOf(GameEvent.Say("Brrr, ${celsius.toInt()}°C! *shivers*", Anim.NONE)) }
+            else -> emptyList()
+        } + checkAchievements(now)
+    }
+
+    fun onTorchFirefly(now: Long): List<GameEvent> {
+        if (!onceEvery("firefly", now, 5_000L)) return emptyList()
+        g.bump(C.FIREFLIES)
+        val ev = mutableListOf<GameEvent>()
+        award("special:firefly", now, ev)
+        if (b.hatched) { s.happiness += 1; s.clampAll() }
+        ev += GameEvent.Say(listOf("✨ Ooh, a firefly!", "The light! So pretty!", "*chases the glow*").random(rnd), Anim.LOVE)
+        ev += checkAchievements(now)
+        return ev
+    }
+
+    /** Award time-of-day and altitude stickers; called from the main tick and sky/altitude handlers. */
+    fun timeStickers(now: Long): List<GameEvent> {
+        val ev = mutableListOf<GameEvent>()
+        val h = java.util.Calendar.getInstance().apply { timeInMillis = now }.get(java.util.Calendar.HOUR_OF_DAY)
+        if (h in 0..4) award("special:nightowl", now, ev)
+        if (h in 4..5) award("special:earlybird", now, ev)
         return ev
     }
 

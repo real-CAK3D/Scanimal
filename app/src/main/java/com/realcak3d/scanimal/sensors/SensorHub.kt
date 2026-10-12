@@ -1,6 +1,9 @@
 package com.realcak3d.scanimal.sensors
 
 import android.content.Context
+import android.location.Location
+import android.os.Handler
+import android.os.Looper
 import com.realcak3d.scanimal.core.Anim
 import com.realcak3d.scanimal.core.Codec
 import com.realcak3d.scanimal.core.FoodFactory
@@ -27,19 +30,30 @@ class SensorHub(ctx: Context, val repo: GameRepository) {
     val haptics = Haptics(ctx)
     val cells = CellRadar(ctx)
     val link = BuddyLink(ctx, repo)
+    val torch = Torch(ctx)
 
     private var lastAlt = 0L
+    private var lastSpeed = 0f
+    private var lastLoc: Location? = null
+    private var stepWindow = ArrayDeque<Long>()   // recent step event times, for cadence
+    private val mappedIds = HashSet<String>()
+    private val handler = Handler(Looper.getMainLooper())
 
     init {
-        wifi.onBatch = { list -> repo.act { now -> onWifiScan(list, now) } }
-        bt.onBatch = { list -> repo.act { now -> onBluetooth(list, now) } }
         gnss.onSatellites = { sats -> repo.act { now -> onSatellites(sats, now) } }
         gnss.onLocation = { loc ->
             DistanceTracker.feed(repo, loc)
+            lastLoc = loc
+            if (loc.hasSpeed()) lastSpeed = loc.speed
             if (loc.hasAltitude() && System.currentTimeMillis() - lastAlt > 60_000) { lastAlt = System.currentTimeMillis(); repo.act { now -> onAltitude(loc.altitude, now) } }
         }
         body.onShake = { haptics.buzz(40, 160); repo.act { now -> onShake(now) } }
-        body.onSteps = { n -> DistanceTracker.addSteps(n); repo.act { now -> onSteps(n, now) } }
+        body.onSteps = { n ->
+            DistanceTracker.addSteps(n)
+            val t = System.currentTimeMillis(); repeat(n) { stepWindow.addLast(t) }
+            while (stepWindow.isNotEmpty() && t - stepWindow.first() > 30_000) stepWindow.removeFirst()
+            repo.act { now -> onSteps(n, now) }
+        }
         body.onDark = { repo.act { now -> onDark(now) } }
         body.onPeekaboo = { repo.act { now -> onPeekaboo(now) } }
         body.onCharging = { repo.act { now -> onCharging(now) } }
@@ -48,7 +62,45 @@ class SensorHub(ctx: Context, val repo: GameRepository) {
         sound.onLoud = { repo.act { now -> onLoudSound(now) } }
         cells.onBatch = { list -> repo.act { now -> onCells(list, now) } }
         bt.onBuddyAdvert = { data, rssi, addr -> link.onAdvert(data, rssi, addr) }
+        body.onSignificantMotion = { repo.act { now -> onSignificantMotion(now) } }
+        wifi.onBatch = { list -> mapNew(list.map { "WIFI:${it.id}" to it.name }); repo.act { now -> onWifiScan(list, now) } }
+        bt.onBatch = { list -> mapNew(list.map { "BT:${it.id}" to it.name }); repo.act { now -> onBluetooth(list, now) } }
     }
+
+    private fun cadenceSpm(): Float {
+        val t = System.currentTimeMillis()
+        while (stepWindow.isNotEmpty() && t - stepWindow.first() > 30_000) stepWindow.removeFirst()
+        if (stepWindow.size < 2) return 0f
+        val span = (t - stepWindow.first()).coerceAtLeast(1).toFloat() / 60_000f
+        return stepWindow.size / span
+    }
+
+    private fun pocketed(): Boolean {
+        val r = body.readings.value
+        return (r.hasLight && r.lux in 0f..6f) && (!r.hasProximity || r.proximityNear) && r.accel < 2f
+    }
+
+    /** Pin newly seen signals on the on-device map (only when the trail is enabled and we have a fix). */
+    private fun mapNew(items: List<Pair<String, String>>) {
+        if (!repo.data.settings.mapTrail) return
+        val loc = lastLoc ?: return
+        if (System.currentTimeMillis() - loc.time > 60_000) return
+        for ((id, name) in items) {
+            if (mappedIds.add(id)) repo.engine.mapDiscovery(loc.latitude, loc.longitude, id.substringBefore(':').lowercase(), name.ifBlank { id }, loc.time)
+        }
+    }
+
+    private val envLoop = object : Runnable {
+        override fun run() {
+            val r = body.readings.value
+            val devices = wifi.results.value.size + bt.devices.value.size + cells.cells.value.size
+            repo.act { now -> onEnvironment(devices, r.pressureHpa.takeIf { r.hasBarometer } ?: 0f, lastSpeed, cadenceSpm(), pocketed(), now) }
+            if (!r.ambientTempC.isNaN()) repo.act { now -> onAmbientTemp(r.ambientTempC, now) }
+            handler.postDelayed(this, 30_000)
+        }
+    }
+
+    fun fireflyTap() { torch.toggle(); if (torch.on) repo.act { now -> onTorchFirefly(now) } }
 
     fun applySettings() {
         val s = repo.data.settings
@@ -60,9 +112,11 @@ class SensorHub(ctx: Context, val repo: GameRepository) {
     fun startAll() {
         applySettings()
         body.start(); wifi.start(); bt.start(); gnss.start(); cells.start(); link.start()
+        handler.postDelayed(envLoop, 8_000)
     }
 
     fun stopAll() {
+        handler.removeCallbacks(envLoop); torch.off()
         body.stop(); wifi.stop(); bt.stop(); gnss.stop(); sound.stop(); cells.stop(); link.stop()
     }
 

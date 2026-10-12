@@ -46,11 +46,17 @@ data class BodyReadings(
     val batteryPct: Int = -1,
     val charging: Boolean = false,
     val soundDb: Float = 0f,
+    val ambientTempC: Float = Float.NaN,
+    val humidity: Float = Float.NaN,
+    val torchOn: Boolean = false,
     val hasCompass: Boolean = false,
     val hasStepCounter: Boolean = false,
     val hasLight: Boolean = false,
     val hasProximity: Boolean = false,
     val hasBarometer: Boolean = false,
+    val hasThermometer: Boolean = false,
+    val hasHygrometer: Boolean = false,
+    val hasTorch: Boolean = false,
 )
 
 /** Every on-board sensor we can make fun out of. Callbacks fire on the main thread. */
@@ -63,10 +69,14 @@ class BodySensors(private val ctx: Context) : SensorEventListener {
     private val pressure = sm.getDefaultSensor(Sensor.TYPE_PRESSURE)
     private val magnetic = sm.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
     private val steps = sm.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+    private val thermo = sm.getDefaultSensor(Sensor.TYPE_AMBIENT_TEMPERATURE)
+    private val hygro = sm.getDefaultSensor(Sensor.TYPE_RELATIVE_HUMIDITY)
+    private val sigMotion = sm.getDefaultSensor(Sensor.TYPE_SIGNIFICANT_MOTION)
 
     private val _r = MutableStateFlow(
         BodyReadings(hasCompass = rotation != null, hasStepCounter = steps != null, hasLight = light != null,
-            hasProximity = proximity != null, hasBarometer = pressure != null)
+            hasProximity = proximity != null, hasBarometer = pressure != null,
+            hasThermometer = thermo != null, hasHygrometer = hygro != null, hasTorch = hasTorchFlash(ctx))
     )
     val readings: StateFlow<BodyReadings> = _r.asStateFlow()
 
@@ -77,6 +87,14 @@ class BodySensors(private val ctx: Context) : SensorEventListener {
     var onCharging: (() -> Unit)? = null
     var onMagnet: ((Float) -> Unit)? = null
     var onAltitude: ((Double) -> Unit)? = null
+    var onSignificantMotion: (() -> Unit)? = null
+
+    private val sigMotionTrigger = object : android.hardware.TriggerEventListener() {
+        override fun onTrigger(event: android.hardware.TriggerEvent?) {
+            onSignificantMotion?.invoke()
+            if (running) sigMotion?.let { sm.requestTriggerSensor(this, it) }
+        }
+    }
 
     private var running = false
     private var lastShake = 0L
@@ -113,6 +131,9 @@ class BodySensors(private val ctx: Context) : SensorEventListener {
         proximity?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
         pressure?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
         magnetic?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
+        thermo?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
+        hygro?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
+        sigMotion?.let { sm.requestTriggerSensor(sigMotionTrigger, it) }
         if (steps != null && (Build.VERSION.SDK_INT < 29 || ctx.granted(Manifest.permission.ACTIVITY_RECOGNITION))) {
             sm.registerListener(this, steps, SensorManager.SENSOR_DELAY_NORMAL)
         }
@@ -136,6 +157,7 @@ class BodySensors(private val ctx: Context) : SensorEventListener {
         if (!running) return
         running = false
         sm.unregisterListener(this)
+        runCatching { sigMotion?.let { sm.cancelTriggerSensor(sigMotionTrigger, it) } }
         runCatching { ctx.unregisterReceiver(batteryReceiver) }
         stepBase = -1f
     }
@@ -195,6 +217,8 @@ class BodySensors(private val ctx: Context) : SensorEventListener {
                 _r.value = _r.value.copy(magneticUT = m)
                 if (m > 200f) onMagnet?.invoke(m)
             }
+            Sensor.TYPE_AMBIENT_TEMPERATURE -> _r.value = _r.value.copy(ambientTempC = e.values[0])
+            Sensor.TYPE_RELATIVE_HUMIDITY -> _r.value = _r.value.copy(humidity = e.values[0])
             Sensor.TYPE_STEP_COUNTER -> {
                 val total = e.values[0]
                 if (stepBase < 0) { stepBase = total; stepReported = 0 }
@@ -261,6 +285,25 @@ class SoundMeter(private val ctx: Context) {
     /** Reference-counted so the Lab and the Spectrum view can both use the mic. */
     fun acquire() { users++; start() }
     fun release() { users = (users - 1).coerceAtLeast(0); if (users == 0) stop() }
+}
+
+private fun hasTorchFlash(ctx: Context): Boolean =
+    ctx.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_CAMERA_FLASH)
+
+/** The camera flash as a toy "firefly" light. */
+class Torch(private val ctx: Context) {
+    private val cm = ctx.getSystemService(Context.CAMERA_SERVICE) as? android.hardware.camera2.CameraManager
+    private val id: String? = runCatching {
+        cm?.cameraIdList?.firstOrNull { cm.getCameraCharacteristics(it).get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE) == true }
+    }.getOrNull()
+    val available get() = id != null
+    @Volatile var on = false; private set
+    fun set(state: Boolean): Boolean {
+        val c = id ?: return false
+        return runCatching { cm?.setTorchMode(c, state); on = state; true }.getOrDefault(false)
+    }
+    fun toggle() = set(!on)
+    fun off() { runCatching { if (on) set(false) } }
 }
 
 /** Vibration + beeps. */

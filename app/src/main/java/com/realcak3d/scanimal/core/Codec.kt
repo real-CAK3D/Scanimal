@@ -7,6 +7,12 @@ import org.json.JSONObject
 object Codec {
     const val VERSION = 1
 
+    private fun obj(map: Map<*, *>): JSONObject {
+        val o = JSONObject()
+        map.entries.sortedBy { it.key.toString() }.forEach { o.put(it.key.toString(), it.value) }
+        return o
+    }
+
     fun encode(g: GameData): String {
         val b = g.buddy
         val s = b.stats
@@ -28,17 +34,17 @@ object Codec {
         })
         o.put("coins", g.coins)
         o.put("ownerName", g.ownerName)
-        o.put("inventory", JSONObject(g.inventory as Map<*, *>))
+        o.put("inventory", obj(g.inventory))
         o.put("cosmetics", JSONArray(g.ownedCosmetics.toList()))
-        o.put("achievements", JSONObject(g.achievements as Map<*, *>))
-        o.put("counters", JSONObject(g.counters as Map<*, *>))
-        o.put("codeLastEaten", JSONObject(g.codeLastEaten as Map<*, *>))
-        o.put("codeTimesEaten", JSONObject(g.codeTimesEaten as Map<*, *>))
+        o.put("achievements", obj(g.achievements))
+        o.put("counters", obj(g.counters))
+        o.put("codeLastEaten", obj(g.codeLastEaten))
+        o.put("codeTimesEaten", obj(g.codeTimesEaten))
         o.put("seenWifi", JSONArray(g.seenWifi.toList()))
         o.put("seenBt", JSONArray(g.seenBt.toList()))
         o.put("friendNames", JSONArray(g.friendNames))
         o.put("constellations", JSONArray(g.constellations.toList()))
-        o.put("memory", JSONObject(g.memory as Map<*, *>))
+        o.put("memory", obj(g.memory))
         o.put("likes", JSONArray(g.likes))
         o.put("journal", JSONArray().apply { g.journal.forEach { put(JSONObject().put("t", it.time).put("i", it.icon).put("x", it.text)) } })
         o.put("graveyard", JSONArray().apply {
@@ -47,17 +53,17 @@ object Codec {
                     .put("age", it.ageYears).put("diedAt", it.diedAt).put("cause", it.cause))
             }
         })
-        o.put("daily", JSONObject(g.daily as Map<*, *>))
+        o.put("daily", obj(g.daily))
         o.put("settings", JSONObject().apply {
             put("notifications", g.settings.notifications); put("vibration", g.settings.vibration); put("sounds", g.settings.sounds)
             put("online", g.settings.onlineProductLookup); put("autoSleep", g.settings.autoSleepAtNight)
             put("background", g.settings.backgroundMode); put("discoverable", g.settings.discoverable); put("autoUpdate", g.settings.autoUpdate)
             put("metric", g.settings.metric); put("theme", g.settings.theme); put("physics", g.settings.physics)
-            put("showVisitors", g.settings.showVisitors); put("chatter", g.settings.ambientChatter)
+            put("showVisitors", g.settings.showVisitors); put("chatter", g.settings.ambientChatter); put("mapTrail", g.settings.mapTrail)
         })
         o.put("lastFoodName", g.lastFoodName)
         o.put("favoriteFood", g.favoriteFood)
-        o.put("bestScores", JSONObject(g.bestScores as Map<*, *>))
+        o.put("bestScores", obj(g.bestScores))
         o.put("created", g.created)
         o.put("myId", g.myId)
         o.put("lastVersionCheck", g.lastVersionCheck)
@@ -73,6 +79,16 @@ object Codec {
             }
         })
         o.put("friends", JSONArray().apply { g.friends.forEach { put(friendJson(it, withPrivate = true)) } })
+        o.put("stickers", JSONArray(g.stickers.toList()))
+        o.put("questDay", g.questDay)
+        o.put("weather", g.weather.name); o.put("biome", g.biome.name); o.put("motion", g.motion.name)
+        o.put("bootAt", g.bootAt); o.put("pressureBaseline", g.pressureBaseline.toDouble())
+        o.put("quests", JSONArray().apply {
+            g.quests.forEach { put(JSONObject().put("id", it.id).put("t", it.title).put("k", it.counterKey).put("b", it.baseline).put("tg", it.target).put("r", it.reward).put("c", it.claimed)) }
+        })
+        o.put("discoveries", JSONArray().apply {
+            g.discoveries.takeLast(2000).forEach { put(JSONObject().put("la", it.lat).put("lo", it.lon).put("k", it.kind).put("n", it.label).put("t", it.time)) }
+        })
         return o.toString()
     }
 
@@ -129,7 +145,7 @@ object Codec {
                 it.optBoolean("online", true), it.optBoolean("autoSleep", true), it.optBoolean("background", false),
                 it.optBoolean("discoverable", true), it.optBoolean("autoUpdate", true), it.optBoolean("metric", true),
                 it.optString("theme", "radar"), it.optBoolean("physics", true), it.optBoolean("showVisitors", true),
-                it.optBoolean("chatter", true))
+                it.optBoolean("chatter", true), it.optBoolean("mapTrail", true))
         }
         g.lastFoodName = o.optString("lastFoodName")
         g.favoriteFood = o.optString("favoriteFood")
@@ -137,6 +153,23 @@ object Codec {
         g.created = o.optLong("created")
         g.myId = o.optString("myId")
         g.lastVersionCheck = o.optLong("lastVersionCheck")
+        o.optJSONArray("stickers")?.let { a -> for (i in 0 until a.length()) g.stickers.add(a.getString(i)) }
+        g.questDay = o.optLong("questDay", -1L)
+        g.weather = enumOr(o.optString("weather"), Weather.UNKNOWN)
+        g.biome = enumOr(o.optString("biome"), Biome.OUTDOORS)
+        g.motion = enumOr(o.optString("motion"), Motion.STILL)
+        g.bootAt = o.optLong("bootAt")
+        g.pressureBaseline = o.optDouble("pressureBaseline", 0.0).toFloat()
+        o.optJSONArray("quests")?.let { a ->
+            for (i in 0 until a.length()) a.optJSONObject(i)?.let { q ->
+                g.quests.add(Quest(q.optString("id"), q.optString("t"), q.optString("k"), q.optLong("b"), q.optLong("tg", 1), q.optInt("r"), q.optBoolean("c")))
+            }
+        }
+        o.optJSONArray("discoveries")?.let { a ->
+            for (i in 0 until a.length()) a.optJSONObject(i)?.let { d ->
+                g.discoveries.add(Discovery(d.optDouble("la"), d.optDouble("lo"), d.optString("k"), d.optString("n"), d.optLong("t")))
+            }
+        }
         o.optJSONObject("owner")?.let {
             g.owner = OwnerProfile(it.optString("name"), it.optString("birthday"), it.optString("color"), it.optString("food"),
                 it.optString("hobby"), it.optString("pet"), it.optBoolean("done"))
