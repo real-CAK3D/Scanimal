@@ -76,6 +76,8 @@ fun BuddyView(
     lookAt: Offset = Offset.Zero,
     antennaGlow: Float = 0.3f,
     eggCracks: Int = 0,
+    variant: String = "",
+    underwater: Boolean = false,
     onTap: (Offset) -> Unit = {},
 ) {
     var frame by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -89,7 +91,7 @@ fun BuddyView(
     val textPaint = remember { Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.DEFAULT_BOLD; textAlign = Paint.Align.CENTER } }
     val ctx = LocalContext.current
     val sprite: ImageBitmap? = if (Pal.spritesOn && look.stage != Stage.EGG)
-        remember(look.species, look.stage) { SpriteStore.image(ctx, look.species, look.stage) } else null
+        remember(look.species, look.stage, variant) { SpriteStore.image(ctx, look.species, look.stage, variant) } else null
 
     Canvas(
         modifier.pointerInput(Unit) { detectTapGestures { tap(it) } }
@@ -102,7 +104,7 @@ fun BuddyView(
         if (look.stage == Stage.EGG) {
             drawEgg(look, t, maxOf(eggCracks, (look.eggProgress * 6).toInt()), active, p)
         } else {
-            drawBuddy(look, t, active, p, lookAt, blink.closedAmount(now), antennaGlow, textPaint, sprite)
+            drawBuddy(look, t, active, p, lookAt, blink.closedAmount(now), antennaGlow, textPaint, sprite, underwater)
         }
     }
 }
@@ -158,7 +160,7 @@ private fun DrawScope.drawEgg(look: BuddyLook, t: Float, cracks: Int, anim: Anim
 }
 
 private fun DrawScope.drawBuddy(
-    look: BuddyLook, t: Float, anim: Anim, p: Float, lookAt: Offset, blink: Float, antennaGlow: Float, textPaint: Paint, sprite: ImageBitmap? = null,
+    look: BuddyLook, t: Float, anim: Anim, p: Float, lookAt: Offset, blink: Float, antennaGlow: Float, textPaint: Paint, sprite: ImageBitmap? = null, underwater: Boolean = false,
 ) {
     val u = min(size.width, size.height) / 100f
     val s = look.stage.scale
@@ -193,6 +195,13 @@ private fun DrawScope.drawBuddy(
     }
     if (look.tantrum && anim == Anim.NONE) tilt = sin(t * 18f) * 4f
     if (look.asleep) { bob = sin(t * 1.2f) * 0.8f * u; squashY = 0.94f + sin(t * 1.2f) * 0.02f; squashX = 1.04f }
+    // Underwater: a slow buoyant sway instead of a bouncy hop.
+    if (underwater && anim == Anim.NONE && !look.asleep) {
+        bob = sin(t * 1.0f) * 2.4f * u
+        tilt = sin(t * 0.7f) * 3.5f
+        val drift = sin(t * 0.9f) * 0.015f
+        squashX = 1f + drift; squashY = 1f - drift
+    }
 
     val hatching = anim == Anim.HATCH
     val gp = p * p * (3f - 2f * p)                       // smoothstep ease
@@ -216,7 +225,7 @@ private fun DrawScope.drawBuddy(
     rotate(tilt, Offset(cx, ground)) {
         if (sprite != null) {
             val iw = sprite.width.toFloat(); val ih = sprite.height.toFloat()
-            val w = bw * 2.4f; val h = w * (ih / iw)
+            val w = bw * 2.6f; val h = w * (ih / iw)
             val l = cx - w / 2; val topY = (cy + bh * 0.52f) - h
             drawImage(sprite, dstOffset = IntOffset(l.toInt(), topY.toInt()), dstSize = IntSize(w.toInt().coerceAtLeast(1), h.toInt().coerceAtLeast(1)),
                 alpha = if (look.dead) 0.5f else 1f)
@@ -432,6 +441,18 @@ private fun DrawScope.drawBuddy(
     }
 
     // Overlays
+    if (underwater) {
+        // Air bubbles rising from the regulator / mouth.
+        val src = Offset(cx + bw * 0.10f, cy + bh * 0.06f)
+        for (k in 0 until 7) {
+            val ph = ((t * 0.35f + k * 0.37f) % 1f)
+            val by = src.y - ph * bh * 2.3f
+            val bx = src.x + sin(ph * 6f + k) * 3f * u
+            val br = (0.8f + (k % 3) * 0.5f) * u * (1f - ph * 0.3f)
+            drawCircle(Color.White.copy(alpha = (1f - ph) * 0.5f), br, Offset(bx, by))
+            drawCircle(Color.White.copy(alpha = (1f - ph) * 0.35f), br * 0.4f, Offset(bx - br * 0.3f, by - br * 0.35f))
+        }
+    }
     if (look.asleep) {
         textPaint.color = Pal.sky.toArgb()
         for (k in 0..2) {

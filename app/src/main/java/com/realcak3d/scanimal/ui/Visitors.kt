@@ -33,8 +33,9 @@ import kotlin.math.sin
 
 /** Up to 5 friend buddies hanging out in your room. Tap one to interact. */
 @Composable
-fun VisitorLayer(repo: GameRepository, hub: SensorHub, friends: List<Friend>, nearbyIds: Set<String>, go: (Screen) -> Unit, modifier: Modifier = Modifier) {
+fun VisitorLayer(repo: GameRepository, hub: SensorHub, friends: List<Friend>, nearbyIds: Set<String>, go: (Screen) -> Unit, hostSpecies: com.realcak3d.scanimal.core.Species = com.realcak3d.scanimal.core.Species.BLOB, modifier: Modifier = Modifier) {
     if (friends.isEmpty()) return
+    val hostIsFish = hostSpecies == com.realcak3d.scanimal.core.Species.FISH
     var t by remember { mutableLongStateOf(0L) }
     LaunchedEffect(Unit) { while (true) withFrameMillis { t = it } }
     var menuFor by remember { mutableStateOf<String?>(null) }
@@ -49,8 +50,9 @@ fun VisitorLayer(repo: GameRepository, hub: SensorHub, friends: List<Friend>, ne
             val x = (slot + wander).coerceIn(0.04f, 0.96f)
             val size = 74.dp
             val anim = if (reaction?.first == f.id && now - (reaction?.second ?: 0L) < 1800) Anim.HAPPY else Anim.NONE
+            val variant = if (hostIsFish || f.species == com.realcak3d.scanimal.core.Species.FISH) "_scuba" else ""
             Box(Modifier.offset(x = w * x - size / 2, y = maxHeight - size - 6.dp).size(size)) {
-                BuddyView(f.look(now), anim, reaction?.second ?: 0L, Modifier.fillMaxSize(), onTap = { menuFor = f.id })
+                BuddyView(f.look(now), anim, reaction?.second ?: 0L, Modifier.fillMaxSize(), variant = variant, underwater = hostIsFish, onTap = { menuFor = f.id })
                 if (f.id in nearbyIds) Text("📍", fontSize = 12.sp, modifier = Modifier.align(Alignment.TopEnd))
                 Text(f.name, color = Pal.text, fontSize = 9.sp, modifier = Modifier.align(Alignment.BottomCenter).clip(RoundedCornerShape(6.dp)).background(Pal.bg.copy(alpha = 0.6f)).padding(horizontal = 4.dp))
                 DropdownMenu(expanded = menuFor == f.id, onDismissRequest = { menuFor = null }) {

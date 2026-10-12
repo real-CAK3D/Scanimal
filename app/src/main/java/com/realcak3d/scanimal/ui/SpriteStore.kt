@@ -31,12 +31,28 @@ object SpriteStore {
         return anyPresent
     }
 
-    fun image(ctx: Context, species: Species, stage: Stage): ImageBitmap? {
+    /**
+     * @param variant "" for the normal look, "_scuba" for a buddy on the fish's underwater screen
+     *   (or the fish visiting land), "_bowl" for the fish's optional fishbowl look on land.
+     * Falls back to the plain sprite if a variant file is missing, then to the per-species image.
+     */
+    fun image(ctx: Context, species: Species, stage: Stage, variant: String = ""): ImageBitmap? {
         val sp = species.name.lowercase(); val st = stage.name.lowercase()
-        val key = "${sp}_$st"
+        val key = "${sp}_$st$variant"
         if (cache.containsKey(key)) return cache[key]
-        val img = load(ctx, "sprites/$key.webp") ?: load(ctx, "sprites/$key.png")
-            ?: load(ctx, "sprites/$sp.webp") ?: load(ctx, "sprites/$sp.png")
+        var img = load(ctx, "sprites/$key.webp") ?: load(ctx, "sprites/$key.png")
+        if (img == null && variant.isNotEmpty()) img = image(ctx, species, stage, "") // variant missing → plain
+        if (img == null) img = load(ctx, "sprites/$sp.webp") ?: load(ctx, "sprites/$sp.png")
+        cache[key] = img
+        return img
+    }
+
+    /** A home-scene background for a species, from assets/backgrounds/<species>.webp. */
+    fun background(ctx: Context, species: Species): ImageBitmap? {
+        val sp = species.name.lowercase()
+        val key = "bg_$sp"
+        if (cache.containsKey(key)) return cache[key]
+        val img = load(ctx, "backgrounds/$sp.webp") ?: load(ctx, "backgrounds/$sp.png")
         cache[key] = img
         return img
     }

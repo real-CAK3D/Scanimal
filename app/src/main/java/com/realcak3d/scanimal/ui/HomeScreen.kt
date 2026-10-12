@@ -148,6 +148,7 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
             }
             BuddyView(
                 look = g.look(now), anim = speech.anim, animAt = speech.at,
+                underwater = b.species == com.realcak3d.scanimal.core.Species.FISH,
                 modifier = Modifier.fillMaxSize().graphicsLayer {
                     translationX = (px + wanderX) * size.width * 0.30f
                     translationY = -py * size.height * 0.45f
@@ -172,7 +173,7 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
             )
             val nearby by hub.link.nearby.collectAsStateWithLifecycle()
             if (g.settings.showVisitors && b.hatched) {
-                VisitorLayer(repo, hub, g.friends.filter { it.onScreen }, nearby.map { it.card.id }.toSet(), go, Modifier.fillMaxSize())
+                VisitorLayer(repo, hub, g.friends.filter { it.onScreen }, nearby.map { it.card.id }.toSet(), go, hostSpecies = b.species, modifier = Modifier.fillMaxSize())
             }
             if (speech.text.isNotBlank()) {
                 AnimatedContent(
@@ -283,12 +284,25 @@ fun SpeechBubble(text: String) {
 
 @Composable
 fun RoomBackdrop(modifier: Modifier, night: Boolean, asleep: Boolean, species: com.realcak3d.scanimal.core.Species = com.realcak3d.scanimal.core.Species.BLOB, hatched: Boolean = true, toy: String? = null, toyX: Float = 0.5f) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val bg = if (Pal.spritesOn) androidx.compose.runtime.remember(species) { SpriteStore.background(ctx, species) } else null
     androidx.compose.foundation.Canvas(modifier) {
         val th = Pal.theme
         val top = if (night || asleep) Color(0xFF0A0F1F) else th.roomTop
         val bottom = if (night || asleep) Color(0xFF111A30) else th.roomBottom
-        drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(top, bottom)))
         val floorY = size.height * 0.8f
+        if (bg != null) {
+            // Photographic home scene, center-cropped to fill, with a night dimmer.
+            val scale = maxOf(size.width / bg.width, size.height / bg.height)
+            val dw = (bg.width * scale).toInt(); val dh = (bg.height * scale).toInt()
+            val dx = ((size.width - dw) / 2f).toInt(); val dy = ((size.height - dh) / 2f).toInt()
+            drawImage(bg, dstOffset = androidx.compose.ui.unit.IntOffset(dx, dy),
+                dstSize = androidx.compose.ui.unit.IntSize(dw.coerceAtLeast(1), dh.coerceAtLeast(1)))
+            if (night || asleep) drawRect(Color(0xFF060B1A).copy(alpha = 0.45f))
+            if (toy != null) drawToy(toy, toyX * size.width, floorY - 3f)
+            return@Canvas
+        }
+        drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(top, bottom)))
         drawRect(if (night || asleep) Color(0xFF0E1A2E) else th.floor, Offset(0f, floorY), androidx.compose.ui.geometry.Size(size.width, size.height - floorY))
         for (i in 0..10) {
             val x = size.width * i / 10f
