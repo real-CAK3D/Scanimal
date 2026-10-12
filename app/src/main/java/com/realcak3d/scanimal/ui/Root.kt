@@ -143,7 +143,7 @@ fun ScanimalRoot(repo: GameRepository, hub: SensorHub, hasNfc: Boolean) {
                 Screen.PROFILE -> ProfileScreen(repo)
                 Screen.JOURNAL -> JournalScreen(repo)
                 Screen.LAB -> LabScreen(repo, hub)
-                Screen.SETTINGS -> SettingsScreen(repo, hub, requestPermissions = { launcher.launch(MainActivity.runtimePermissions) })
+                Screen.SETTINGS -> SettingsScreen(repo, hub, requestPermissions = { launcher.launch(MainActivity.runtimePermissions) }, go = { screen = it })
             }
             AnimatedVisibility(
                 visible = banner != null,

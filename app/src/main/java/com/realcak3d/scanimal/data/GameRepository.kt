@@ -83,22 +83,58 @@ class GameRepository private constructor(context: Context) {
         prefs.edit().putString(KEY, Codec.encode(data)).apply()
     }
 
+    /** Replace every field of the live save with [src], keeping Engine/Chat references valid. */
+    private fun replaceWith(src: GameData) {
+        data.buddy = src.buddy; data.coins = src.coins; data.ownerName = src.ownerName
+        data.inventory.clear(); data.inventory.putAll(src.inventory)
+        data.ownedCosmetics.clear(); data.ownedCosmetics.addAll(src.ownedCosmetics)
+        data.achievements.clear(); data.achievements.putAll(src.achievements)
+        data.counters.clear(); data.counters.putAll(src.counters)
+        data.codeLastEaten.clear(); data.codeLastEaten.putAll(src.codeLastEaten)
+        data.codeTimesEaten.clear(); data.codeTimesEaten.putAll(src.codeTimesEaten)
+        data.seenWifi.clear(); data.seenWifi.addAll(src.seenWifi)
+        data.seenBt.clear(); data.seenBt.addAll(src.seenBt)
+        data.friendNames.clear(); data.friendNames.addAll(src.friendNames)
+        data.constellations.clear(); data.constellations.addAll(src.constellations)
+        data.memory.clear(); data.memory.putAll(src.memory)
+        data.likes.clear(); data.likes.addAll(src.likes)
+        data.journal.clear(); data.journal.addAll(src.journal)
+        data.graveyard.clear(); data.graveyard.addAll(src.graveyard)
+        data.daily.clear(); data.daily.putAll(src.daily)
+        data.settings = src.settings
+        data.lastFoodName = src.lastFoodName; data.favoriteFood = src.favoriteFood
+        data.bestScores.clear(); data.bestScores.putAll(src.bestScores)
+        data.created = src.created; data.myId = src.myId; data.owner = src.owner
+        data.devices.clear(); data.devices.putAll(src.devices)
+        data.friends.clear(); data.friends.addAll(src.friends)
+        data.lastVersionCheck = src.lastVersionCheck
+    }
+
     fun resetEverything() {
         synchronized(lock) {
-            val fresh = GameData()
-            // Copy into the existing instance so Engine/Chat keep their references.
-            data.buddy = fresh.buddy; data.coins = fresh.coins; data.ownerName = ""
-            data.inventory.clear(); data.inventory.putAll(fresh.inventory)
-            data.ownedCosmetics.clear(); data.achievements.clear(); data.counters.clear()
-            data.codeLastEaten.clear(); data.codeTimesEaten.clear(); data.seenWifi.clear(); data.seenBt.clear()
-            data.friendNames.clear(); data.constellations.clear(); data.memory.clear(); data.likes.clear()
-            data.journal.clear(); data.graveyard.clear(); data.daily.clear(); data.bestScores.clear()
-            data.lastFoodName = ""; data.favoriteFood = ""; data.created = 0L
+            replaceWith(GameData())
             engine.newEgg(System.currentTimeMillis())
             persist()
         }
         publish(emptyList())
         say("*a fresh egg appears*")
+    }
+
+    /** Restores a backup made with Settings → Export save. */
+    fun importSave(text: String): Boolean {
+        val i = text.indexOf("SCANIMALSAVE1:")
+        if (i < 0) return false
+        val decoded = runCatching {
+            Codec.decode(String(java.util.Base64.getDecoder().decode(text.substring(i + 14).trim().takeWhile { !it.isWhitespace() })))
+        }.getOrNull() ?: return false
+        synchronized(lock) {
+            replaceWith(decoded)
+            data.buddy.lastUpdate = System.currentTimeMillis()
+            persist()
+        }
+        publish(emptyList())
+        say("I'm back! Did you miss me? 💾", Anim.LOVE)
+        return true
     }
 
     companion object {

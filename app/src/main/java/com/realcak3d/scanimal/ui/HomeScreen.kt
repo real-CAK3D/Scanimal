@@ -100,6 +100,7 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
         if (b.hatched) {
             XpBar(b.xp, b.xpToNext(), Modifier.padding(horizontal = 16.dp))
         }
+        UpdateBanner(go)
 
         // Stage + speech
         Box(Modifier.fillMaxWidth().height(330.dp)) {
@@ -199,6 +200,19 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
             }
         }
     }
+}
+
+@Composable
+private fun UpdateBanner(go: (Screen) -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val st by com.realcak3d.scanimal.work.Updater.state.collectAsStateWithLifecycle()
+    val (text, action) = when (val u = st) {
+        is com.realcak3d.scanimal.work.Updater.State.Ready -> "⬆️ Scanimal ${u.release.version} is ready. Tap to install!" to { com.realcak3d.scanimal.work.Updater.install(ctx, u.file) }
+        is com.realcak3d.scanimal.work.Updater.State.Available -> "⬆️ Update ${u.release.version} available" to { go(Screen.SETTINGS) }
+        else -> return
+    }
+    Text(text, color = Pal.bg, fontWeight = FontWeight.Bold, fontSize = 13.sp,
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Pal.amber).clickable { action() }.padding(10.dp))
 }
 
 @Composable

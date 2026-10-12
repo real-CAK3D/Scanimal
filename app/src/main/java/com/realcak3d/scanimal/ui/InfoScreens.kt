@@ -61,7 +61,7 @@ fun ShopScreen(repo: GameRepository) {
     Column(Modifier.fillMaxSize()) {
         ScreenTitle("Shop", "🪙 ${g.coins} coins · Level ${g.buddy.level}")
         Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(ItemKind.CONSUMABLE to "Items", ItemKind.COSMETIC to "Hats & gear", ItemKind.PAINT to "Paint").forEach { (k, label) ->
+            listOf(ItemKind.CONSUMABLE to "Items", ItemKind.COSMETIC to "Hats", ItemKind.OUTFIT to "Outfits", ItemKind.PAINT to "Paint").forEach { (k, label) ->
                 Text(label, color = if (tab == k) Pal.bg else Pal.text, fontWeight = FontWeight.Bold, fontSize = 13.sp,
                     modifier = Modifier.clip(RoundedCornerShape(50)).background(if (tab == k) Pal.mint else Pal.panel2).clickable { tab = k }.padding(horizontal = 14.dp, vertical = 8.dp))
             }
@@ -92,6 +92,8 @@ fun ShopScreen(repo: GameRepository) {
                         if ((item.kind == ItemKind.CONSUMABLE && qty > 0) || (item.kind != ItemKind.CONSUMABLE && owned)) {
                             val label = when {
                                 item.kind == ItemKind.COSMETIC && g.buddy.accessory == item.id -> "Remove"
+                                item.kind == ItemKind.OUTFIT && g.buddy.outfit == item.id -> "Remove"
+                                item.kind == ItemKind.OUTFIT -> "Wear"
                                 item.kind == ItemKind.COSMETIC -> "Wear"
                                 item.kind == ItemKind.PAINT -> "Apply"
                                 else -> "Use"
@@ -306,67 +308,3 @@ fun LabScreen(repo: GameRepository, hub: SensorHub) {
     }
 }
 
-// ------------------------------------------------------------------ Settings
-
-@Composable
-fun SettingsScreen(repo: GameRepository, hub: SensorHub, requestPermissions: () -> Unit) {
-    val g by rememberGame(repo)
-    var confirmReset by remember { mutableStateOf(false) }
-    val s = g.settings
-    fun set(block: com.realcak3d.scanimal.core.Settings.() -> Unit) {
-        repo.act { _ -> this.g.settings.block(); emptyList() }
-        hub.applySettings()
-    }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
-        ScreenTitle("Settings")
-        Panel(Modifier.padding(horizontal = 12.dp), title = "Options") {
-            Toggle("Care reminders (notifications)", s.notifications) { v -> set { notifications = v } }
-            Toggle("Vibration", s.vibration) { v -> set { vibration = v } }
-            Toggle("Beeps", s.sounds) { v -> set { sounds = v } }
-            Toggle("Look up product names online (Open Food Facts)", s.onlineProductLookup) { v -> set { onlineProductLookup = v } }
-            Toggle("Auto-sleep at night (10pm–7am)", s.autoSleepAtNight) { v -> set { autoSleepAtNight = v } }
-        }
-        Spacer(Modifier.height(10.dp))
-        Panel(Modifier.padding(horizontal = 12.dp), title = "Permissions") {
-            Text(
-                "Camera → scanning food\nLocation → Wi-Fi/Bluetooth scans and GPS satellites\nNearby devices → Bluetooth & Wi-Fi radar\n" +
-                    "Physical activity → step counting\nMicrophone → dance party (only when switched on)\nNotifications → care reminders",
-                color = Pal.sub, fontSize = 13.sp, lineHeight = 19.sp,
-            )
-            Spacer(Modifier.height(8.dp))
-            BigButton("Grant permissions", Pal.mint, Modifier.fillMaxWidth()) { requestPermissions() }
-            Spacer(Modifier.height(6.dp))
-            Text("Tip: Android limits apps to 4 Wi-Fi scans per 2 minutes. Developer options → \"Wi-Fi scan throttling\" can turn that off for a faster Wi-Fi radar.", color = Pal.sub, fontSize = 12.sp)
-        }
-        Spacer(Modifier.height(10.dp))
-        Panel(Modifier.padding(horizontal = 12.dp), title = "About") {
-            KeyValue("App", "Scanimal")
-            KeyValue("Brain", "Rule-based phrase engine (no AI)")
-            KeyValue("Achievements", "${Achievements.all.size}")
-            KeyValue("Shop items", "${Items.all.size}")
-            Text("All data stays on this phone. The only network call is the optional product-name lookup.", color = Pal.sub, fontSize = 12.sp)
-        }
-        Spacer(Modifier.height(10.dp))
-        Panel(Modifier.padding(horizontal = 12.dp), title = "Danger zone") {
-            BigButton("Reset everything", Pal.red, Modifier.fillMaxWidth()) { confirmReset = true }
-        }
-    }
-    if (confirmReset) {
-        AlertDialog(
-            onDismissRequest = { confirmReset = false },
-            title = { Text("Start over?") },
-            text = { Text("This deletes your buddy, coins, items, achievements and history. It can't be undone.") },
-            confirmButton = { TextButton({ repo.resetEverything(); confirmReset = false }) { Text("Delete everything", color = Pal.red) } },
-            dismissButton = { TextButton({ confirmReset = false }) { Text("Cancel") } },
-            containerColor = Pal.panel,
-        )
-    }
-}
-
-@Composable
-private fun Toggle(label: String, value: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = Pal.text, fontSize = 14.sp, modifier = Modifier.weight(1f))
-        Switch(value, onChange, colors = SwitchDefaults.colors(checkedTrackColor = Pal.mint))
-    }
-}

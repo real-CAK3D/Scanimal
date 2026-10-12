@@ -76,10 +76,22 @@ class MainActivity : ComponentActivity() {
             while (isActive) {
                 delay(15_000)
                 repo.act { now -> tick(now) }
-                if (++n % 2 == 0) repo.publish(listOf(repo.engine.ambient(System.currentTimeMillis())))
+                if (++n % 2 == 0 && repo.data.settings.ambientChatter) repo.publish(listOf(repo.engine.ambient(System.currentTimeMillis())))
             }
         }
         enableNfc()
+        autoUpdateCheck()
+    }
+
+    private fun autoUpdateCheck() {
+        val s = repo.data.settings
+        val now = System.currentTimeMillis()
+        if (!s.autoUpdate || now - repo.data.lastVersionCheck < 6 * 3_600_000L) return
+        repo.act { _ -> g.lastVersionCheck = now; emptyList() }
+        lifecycleScope.launch {
+            val st = com.realcak3d.scanimal.work.Updater.check()
+            if (st is com.realcak3d.scanimal.work.Updater.State.Available) com.realcak3d.scanimal.work.Updater.download(this@MainActivity, st.release)
+        }
     }
 
     override fun onPause() {
