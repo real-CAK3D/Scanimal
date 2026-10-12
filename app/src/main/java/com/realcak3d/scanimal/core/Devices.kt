@@ -26,7 +26,7 @@ object DeviceClassifier {
         DeviceType.WATCH to listOf("watch", "galaxy watch", "pixel watch", "apple watch", "garmin", "fenix", "forerunner", "amazfit",
             "venu", "vivoactive", "suunto", "coros", "ticwatch", "versa", "sense"),
         DeviceType.FITNESS to listOf("fitbit", "charge 5", "charge 6", "mi band", "smart band", "whoop", "oura", "polar", "inspire", "wahoo", "hrm"),
-        DeviceType.TAG_FINDER to listOf("airtag", "tile", "smarttag", "chipolo", "pebblebee", "find my", "moto tag"),
+        DeviceType.TRACKER to listOf("airtag", "tile", "smarttag", "chipolo", "pebblebee", "find my", "moto tag"),
         DeviceType.TV to listOf(" tv", "bravia", "roku", "fire tv", "firetv", "chromecast", "android tv", "shield", "vizio", "hisense", "tcl", "[tv]", "webos", "apple tv"),
         DeviceType.CAR to listOf("my car", "ford", "sync", "toyota", "honda", "chevy", "chevrolet", "uconnect", "tesla", "bmw", "audi", "mercedes",
             "mazda", "subaru", "hyundai", "kia", "nissan", "jeep", "ram ", "gmc", "volvo", "vw ", "volkswagen", "carplay", "android auto", "lexus"),

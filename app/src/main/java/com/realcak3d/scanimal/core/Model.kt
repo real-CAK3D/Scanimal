@@ -79,7 +79,6 @@ enum class DeviceType(val label: String, val icon: String, val effect: String) {
     MESH("Mesh node", "🕸️", "off-grid friend: +social, +XP"),
     LORA("LoRa node", "📡", "long-range radio: +XP, +smarts"),
     THREAD("Thread/Matter", "🧵", "smart-home mesh: +smarts"),
-    TAG_FINDER("Lost-item tag", "🔖", "found a finder: +XP"),
     UNKNOWN("Mystery device", "❔", "curiosity: +XP"),
 }
 

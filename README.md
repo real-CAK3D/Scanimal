@@ -38,6 +38,16 @@ Get `Scanimal-x.y.z.apk` from [Releases](../../releases/latest). Open it on your
 - Each kind of device has its own effect on your buddy. Being **connected** to a device or network gives a bigger bonus.
 - **Spectrum lab:** Wi-Fi channel analyzer (2.4, 5 and 6 GHz), signal-strength history graph, microphone oscilloscope with FFT spectrum and note detection, and an EMF (magnetometer) graph
 - **Sky:** GPS, GLONASS, Galileo, BeiDou, QZSS, SBAS and NavIC satellites plotted overhead
+- **Notable finds:** the buddy flags likely **surveillance cameras**, **license-plate readers (ALPR, e.g. Flock-style)**, **mesh nodes** and **LoRa nodes (Meshtastic)** from their public radio fingerprints — device names, Bluetooth service IDs, MAC vendor (OUI) and manufacturer IDs. Each is a labeled *guess*, never a confirmation, and detection is entirely passive (listen-only). A phone has no LoRa radio, so a LoRa node is spotted by its Bluetooth, not its long-range signal.
+- **Vendor inventory:** devices are tagged with their maker where known (an on-device OUI table), on top of the device-type categories.
+
+**Environment & adaptation**
+- **Weather** inferred from the barometer trend (storm coming / clearing), with no internet
+- **Biome** from how many signals are around (wilderness → city → signal jungle)
+- **Motion** state (resting, pocket, walking, running, cycling, riding) changes what the buddy does
+- **Daily quests** with rewards, a **collectible sticker album**, and an on-device **explore map** of where you found things
+- **Retro HUD** live status screen and a **nerd panel** with the raw sensor feed and passive developer-settings tips
+- More sensors: significant-motion, ambient temperature/humidity (on phones that have them), and a camera-flash **firefly** toy
 
 **Friends**
 - **Link codes:** a QR code and a text code you can share through any app. Friends scan or paste the code to add your buddy.
@@ -47,13 +57,17 @@ Get `Scanimal-x.y.z.apk` from [Releases](../../releases/latest). Open it on your
 
 **Fun**
 - **Physics:** tilt to slide your buddy and shake to fling it off the walls.
-- **8 themes:** Radar, Sunset, Ocean, Forest, Retro LCD, Candy, Daylight and Midnight
+- **8 themes** plus a custom **accent color** picker and a **big-text** mode: Radar, Sunset, Ocean, Forest, Retro LCD, Candy, Daylight and Midnight
 - 15 hats, 9 outfits and 6 paint jobs in the shop
 - Mini-games: Byte Catcher, Signal Simon, Quick Blip and Code Match
 - ELIZA-style chat with memory, jokes, riddles, stories, songs, fortunes, guess-the-number, rock-paper-scissors, dice and math
 - Sensors: light (sleepy in the dark), proximity (peekaboo), barometer and altitude, magnet detector, charging, microphone (dance party), NFC
 
 **Settings:** updates, information about you, theme, physics, visitors, chatter, background mode, discoverable, units, product lookup, reminders, vibration, beeps, a stats summary, backup export and import, permissions, and reset.
+
+## A note on the signal features
+
+Everything Scanimal does with radios is **passive and read-only**: it listens to signals that are already broadcast in the open and never transmits to, connects without your action to, injects, jams, or attacks anything. Surveillance/mesh/LoRa labels are heuristic guesses meant for awareness and play, not proof. All data — devices, map pins, everything — stays on your phone.
 
 ## Build
 

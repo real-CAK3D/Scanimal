@@ -17,9 +17,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.items as listItems
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -62,7 +63,7 @@ fun QuestsScreen(repo: GameRepository) {
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item { ScreenTitle("Quests", "Fresh missions every day · ${g.count(C.QUESTS_DONE)} completed all-time") }
         if (g.quests.isEmpty()) item { Text("New quests appear once your buddy hatches. Come back tomorrow for more!", color = Pal.sub, modifier = Modifier.padding(8.dp)) }
-        items(g.quests, key = { it.id }) { q ->
+        listItems(g.quests, key = { it.id }) { q ->
             val prog = Quests.progress(q, g)
             val done = prog >= q.target
             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Pal.panel).border(1.dp, if (done) Pal.mint else Pal.line, RoundedCornerShape(16.dp)).padding(14.dp)) {
@@ -104,7 +105,7 @@ fun AlbumScreen(repo: GameRepository) {
         }
         Spacer(Modifier.height(8.dp))
         LazyVerticalGrid(GridCells.Adaptive(96.dp), Modifier.fillMaxSize().padding(horizontal = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            androidx.compose.foundation.lazy.grid.items(Stickers.all.filter { it.category == cat }, key = { it.id }) { st ->
+            gridItems(Stickers.all.filter { it.category == cat }, key = { it.id }) { st ->
                 val got = st.id in g.stickers
                 Column(
                     Modifier.aspectRatio(0.82f).clip(RoundedCornerShape(14.dp)).background(if (got) Pal.panel else Pal.panel2.copy(alpha = 0.5f))
@@ -313,7 +314,7 @@ fun NotableScreen(repo: GameRepository) {
             Spacer(Modifier.height(8.dp))
         }
         if (notable.isEmpty()) item { Text("Nothing notable yet. Keep exploring with the app open — cameras and mesh nodes turn up in public and around smart homes.", color = Pal.sub, modifier = Modifier.padding(8.dp)) }
-        items(notable, key = { "${it.kind}:${it.id}" }) { d ->
+        listItems(notable, key = { "${it.kind}:${it.id}" }) { d ->
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Pal.panel).border(1.dp, Pal.amber.copy(alpha = 0.5f), RoundedCornerShape(14.dp)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(d.type.icon, fontSize = 26.sp, modifier = Modifier.padding(end = 10.dp))
                 Column(Modifier.weight(1f)) {

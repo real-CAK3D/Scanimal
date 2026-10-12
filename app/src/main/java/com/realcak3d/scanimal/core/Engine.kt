@@ -818,7 +818,7 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
             DeviceType.PRINTER -> s.fullness += 2 * m
             DeviceType.HEALTH -> s.health += 3 * m
             DeviceType.BUDDY -> { s.social += 4 * m; s.happiness += 3 * m }
-            DeviceType.SURVEILLANCE, DeviceType.ALPR, DeviceType.MESH, DeviceType.LORA, DeviceType.THREAD, DeviceType.TAG_FINDER ->
+            DeviceType.SURVEILLANCE, DeviceType.ALPR, DeviceType.MESH, DeviceType.LORA, DeviceType.THREAD ->
                 { s.smarts += 2 * m; b.xp += (2 * m).toInt().coerceAtLeast(1) }
         }
         return true
