@@ -140,109 +140,31 @@ fun AlbumScreen(repo: GameRepository) {
     }
 }
 
-// ------------------------------------------------------------------ Map (tilted 3D)
+// ------------------------------------------------------------------ Map (MapPI3-style Leaflet)
 
 @Composable
-fun MapScreen(repo: GameRepository) {
+fun MapScreen(repo: GameRepository, hub: SensorHub) {
     val g by rememberGame(repo)
+    val loc by hub.gnss.location.collectAsStateWithLifecycle()
     val pts = g.discoveries
-    if (pts.isEmpty()) {
-        Column(Modifier.fillMaxSize()) {
-            ScreenTitle("Explore map", "No discoveries pinned yet")
-            Panel(Modifier.padding(12.dp)) {
-                Text("With \"Map trail\" on in Settings and location allowed, every new network, device and tower you find drops a pin on this 3D map. It never leaves your phone.", color = Pal.sub, fontSize = 13.sp)
-            }
-        }
-        return
-    }
-    // Project to local meters around the centroid.
-    val lat0 = pts.sumOf { it.lat } / pts.size
-    val lon0 = pts.sumOf { it.lon } / pts.size
-    data class P(val x: Float, val y: Float, val kind: String)
-    val mapped = pts.takeLast(1500).map {
-        P(((it.lon - lon0) * 111320.0 * kotlin.math.cos(Math.toRadians(lat0))).toFloat(),
-          ((it.lat - lat0) * 110540.0).toFloat(), it.kind)
-    }
-    val radius = max(1f, mapped.maxOf { kotlin.math.hypot(it.x, it.y) })
-
-    var yaw by remember { mutableStateOf(0.5f) }
-    var pitch by remember { mutableStateOf(0.95f) }   // radians, ~55°
-    var zoom by remember { mutableStateOf(1f) }
-    var panX by remember { mutableStateOf(0f) }
-    var panY by remember { mutableStateOf(0f) }
-
     Column(Modifier.fillMaxSize()) {
-        ScreenTitle("Explore map", "${pts.size} discoveries · drag to rotate, pinch to zoom")
-        Box(
-            Modifier.weight(1f).fillMaxWidth().padding(10.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFF05100A))
-                .pointerInput(Unit) {
-                    detectTransformGestures { _, pan, gz, rot ->
-                        zoom = (zoom * gz).coerceIn(0.4f, 6f)
-                        yaw += rot * (PI.toFloat() / 180f)
-                        // Vertical drag tilts, horizontal drag spins (so it works one-finger too).
-                        pitch = (pitch - pan.y * 0.004f).coerceIn(0.2f, 1.45f)
-                        yaw += pan.x * 0.005f
-                    }
-                }
-        ) {
-            Canvas(Modifier.fillMaxSize()) {
-                val cx = size.width / 2; val cy = size.height * 0.52f
-                val focal = 2.3f
-                val camDist = 2.6f
-                val worldScale = 1.1f / radius
-                val cosY = kotlin.math.cos(yaw); val sinY = kotlin.math.sin(yaw)
-                val cosP = kotlin.math.cos(pitch); val sinP = kotlin.math.sin(pitch)
-                // Projects a world point (wx, wy ground metres, wz up-units) to screen + depth + scale.
-                fun project(wx: Float, wy: Float, wz: Float): FloatArray {
-                    val x = (wx * worldScale) - panX; val y = (wy * worldScale) - panY; val z = wz
-                    val x2 = x * cosY - y * sinY; val y2 = x * sinY + y * cosY
-                    val yP = y2 * cosP - z * sinP; val zP = y2 * sinP + z * cosP
-                    val depth = yP + camDist
-                    if (depth < 0.4f) return floatArrayOf(0f, 0f, -1f, 0f)
-                    val k = focal / depth * zoom
-                    return floatArrayOf(cx + x2 * k * (size.minDimension / 3f), cy - zP * k * (size.minDimension / 3f), depth, k)
-                }
-                // Ground grid
-                val gl = 1.3f
-                var gi = -6
-                while (gi <= 6) {
-                    val f = gi / 6f * gl / worldScale
-                    val a0 = project(f, -gl / worldScale, 0f); val a1 = project(f, gl / worldScale, 0f)
-                    if (a0[2] > 0 && a1[2] > 0) drawLine(Pal.mint.copy(alpha = 0.10f), Offset(a0[0], a0[1]), Offset(a1[0], a1[1]), 1f)
-                    val b0 = project(-gl / worldScale, f, 0f); val b1 = project(gl / worldScale, f, 0f)
-                    if (b0[2] > 0 && b1[2] > 0) drawLine(Pal.mint.copy(alpha = 0.10f), Offset(b0[0], b0[1]), Offset(b1[0], b1[1]), 1f)
-                    gi++
-                }
-                // Pins as pillars, far-to-near for correct overlap.
-                val pinH = 0.22f
-                mapped.map { it to project(it.x, it.y, 0f) }.filter { it.second[2] > 0 }
-                    .sortedByDescending { it.second[2] }
-                    .forEach { (pt, base) ->
-                        val top = project(pt.x, pt.y, pinH)
-                        if (top[2] <= 0) return@forEach
-                        val c = when (pt.kind) { "wifi" -> Pal.mint; "bt", "ble" -> Pal.sky; "cell" -> Pal.violet; else -> Pal.amber }
-                        drawLine(c.copy(alpha = 0.55f), Offset(base[0], base[1]), Offset(top[0], top[1]), (1.5f * base[3]).coerceIn(1f, 5f))
-                        drawCircle(Color.Black.copy(alpha = 0.3f), (2.5f * base[3]).coerceIn(1.5f, 7f), Offset(base[0], base[1]))
-                        drawCircle(c, (2.8f * top[3]).coerceIn(1.5f, 8f), Offset(top[0], top[1]))
-                    }
-                // Compass
-                val nrx = kotlin.math.sin(-yaw); val nry = -kotlin.math.cos(-yaw)
-                drawLine(Pal.red, Offset(size.width - 26f, 30f), Offset(size.width - 26f + nrx * 16f, 30f + nry * 16f), 3f)
-                drawCircle(Pal.line, 18f, Offset(size.width - 26f, 30f), style = Stroke(1.5f))
+        ScreenTitle("Explore map", "${pts.size} discoveries · real tiles, tap 3D to tilt")
+        if (pts.isEmpty() && loc == null) {
+            Panel(Modifier.padding(12.dp)) {
+                Text("No discoveries pinned yet, and no GPS fix. With \"Map trail\" on in Settings and location allowed, every new network, device and tower you find drops a pin on this map (stored only on your phone). The map needs internet for its tiles.", color = Pal.sub, fontSize = 13.sp)
             }
+        } else {
+            Box(Modifier.weight(1f).fillMaxWidth().padding(10.dp).clip(RoundedCornerShape(16.dp))) {
+                LeafletMap(pts, loc?.let { it.latitude to it.longitude }, Modifier.fillMaxSize())
+            }
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("📶 ${pts.count { it.kind == "wifi" }}", color = Pal.mint, fontSize = 12.sp)
+                Text("🔵 ${pts.count { it.kind == "bt" || it.kind == "ble" }}", color = Pal.sky, fontSize = 12.sp)
+                Text("🗼 ${pts.count { it.kind == "cell" }}", color = Pal.violet, fontSize = 12.sp)
+                Text("🔵 you", color = Pal.sky, fontSize = 12.sp)
+            }
+            Text("Tiles: OpenStreetMap / OpenTopoMap / USGS / CARTO. Pins and your location never leave the phone.", color = Pal.sub, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp))
         }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Tilt", color = Pal.sub, fontSize = 12.sp)
-            androidx.compose.material3.Slider(value = pitch, onValueChange = { pitch = it }, valueRange = 0.2f..1.45f, modifier = Modifier.weight(1f),
-                colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = Pal.mint, activeTrackColor = Pal.mint))
-            SmallBtn("Reset", Pal.panel2) { yaw = 0.5f; pitch = 0.95f; zoom = 1f; panX = 0f; panY = 0f }
-        }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("📶 ${pts.count { it.kind == "wifi" }}", color = Pal.mint, fontSize = 12.sp)
-            Text("🔵 ${pts.count { it.kind == "bt" || it.kind == "ble" }}", color = Pal.sky, fontSize = 12.sp)
-            Text("🗼 ${pts.count { it.kind == "cell" }}", color = Pal.violet, fontSize = 12.sp)
-        }
-        Spacer(Modifier.height(6.dp))
     }
 }
 

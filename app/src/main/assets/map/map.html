@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<link rel="stylesheet" href="leaflet.css" />
+<script src="leaflet.js"></script>
+<style>
+  html,body,#map{height:100%;margin:0;background:#05120b}
+  .leaflet-container{background:#05120b;font-family:sans-serif}
+  /* MapPI3 3D pitch */
+  #map.pitch-3d .leaflet-map-pane{transform:perspective(900px) rotateX(6deg) scale(1.015);transform-origin:center center}
+  #map.pitch-3d{filter:saturate(1.08) contrast(1.03)}
+  .dock{position:absolute;left:8px;top:8px;right:8px;z-index:540;display:flex;gap:5px;overflow:auto;padding:5px;border-radius:16px;
+    background:rgba(5,12,8,.72);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(10px)}
+  .dock button{min-height:30px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.08);
+    color:#efffe8;padding:5px 9px;font-size:12px;font-weight:800;white-space:nowrap}
+  .dock button.active{background:linear-gradient(135deg,#d9ffc6,#9ce36c);color:#071109;border-color:rgba(255,255,255,.48)}
+  .pin{width:14px;height:14px;border-radius:50%;border:2px solid #071109;box-shadow:0 0 10px rgba(0,0,0,.5)}
+  .pin.wifi{background:#9ce36c}.pin.bt{background:#4bd2ff}.pin.cell{background:#b388ff}.pin.other{background:#ffd54f}
+  .me{width:16px;height:16px;border-radius:50%;background:#4bd2ff;border:3px solid #fff;box-shadow:0 0 0 6px rgba(75,210,255,.3)}
+  .att{position:absolute;right:4px;bottom:2px;z-index:540;font-size:9px;color:#8fae8f;background:rgba(5,12,8,.5);padding:1px 4px;border-radius:6px}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="dock" id="dock"></div>
+<div class="att" id="att"></div>
+<script>
+var modes = {
+  street:{label:'Street',url:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',opt:{maxZoom:19,attribution:'© OpenStreetMap'}},
+  terrain:{label:'Terrain',url:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',opt:{maxZoom:17,attribution:'© OpenTopoMap'}},
+  topo:{label:'Topo',url:'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',opt:{maxZoom:19,maxNativeZoom:16,attribution:'USGS'}},
+  satellite:{label:'Satellite',url:'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}',opt:{maxZoom:19,maxNativeZoom:16,attribution:'USGS imagery'}},
+  dark:{label:'Dark',url:'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',opt:{maxZoom:19,attribution:'© CARTO'}}
+};
+var map = L.map('map',{zoomControl:true,attributionControl:false}).setView([44.1,-70.2],13);
+var layer=null, pins=L.layerGroup().addTo(map), me=null, pitch=false, mode='street';
+function setMode(m){
+  mode=m; if(layer) map.removeLayer(layer);
+  var cfg=modes[m]; layer=L.tileLayer(cfg.url.replace('{s}','a'), cfg.opt).addTo(map);
+  document.getElementById('att').textContent=cfg.opt.attribution||'';
+  [].forEach.call(document.querySelectorAll('.dock button'),function(b){b.classList.toggle('active', b.dataset.m===m||(b.dataset.t&&pitch));});
+}
+function buildDock(){
+  var d=document.getElementById('dock'); d.innerHTML='';
+  Object.keys(modes).forEach(function(k){
+    var b=document.createElement('button'); b.textContent=modes[k].label; b.dataset.m=k; b.onclick=function(){setMode(k);}; d.appendChild(b);
+  });
+  var t=document.createElement('button'); t.textContent='3D'; t.dataset.t='1';
+  t.onclick=function(){ pitch=!pitch; document.getElementById('map').classList.toggle('pitch-3d',pitch); t.classList.toggle('active',pitch); };
+  d.appendChild(t);
+}
+function icon(kind){return L.divIcon({className:'',html:'<div class="pin '+kind+'"></div>',iconSize:[14,14],iconAnchor:[7,7]});}
+// Called from Android.
+window.sc = {
+  setPins:function(json){
+    var arr=JSON.parse(json); pins.clearLayers(); var pts=[];
+    arr.forEach(function(p){ var k=(p.kind==='bt'||p.kind==='ble')?'bt':(p.kind==='cell'?'cell':(p.kind==='wifi'?'wifi':'other'));
+      L.marker([p.lat,p.lon],{icon:icon(k)}).addTo(pins); pts.push([p.lat,p.lon]); });
+    if(pts.length){ try{ map.fitBounds(L.latLngBounds(pts).pad(0.3)); }catch(e){} }
+  },
+  setMe:function(lat,lon){ if(me){map.removeLayer(me);} me=L.marker([lat,lon],{icon:L.divIcon({className:'',html:'<div class="me"></div>',iconSize:[16,16],iconAnchor:[8,8]})}).addTo(map); },
+  center:function(lat,lon,z){ map.setView([lat,lon], z||15); }
+};
+buildDock(); setMode('street');
+</script>
+</body>
+</html>

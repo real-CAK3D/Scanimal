@@ -136,7 +136,7 @@ fun ScanimalRoot(repo: GameRepository, hub: SensorHub, hasNfc: Boolean) {
                 Screen.MORE -> MoreScreen(go = { screen = it })
                 Screen.QUESTS -> QuestsScreen(repo)
                 Screen.ALBUM -> AlbumScreen(repo)
-                Screen.MAP -> MapScreen(repo)
+                Screen.MAP -> MapScreen(repo, hub)
                 Screen.HUD -> HudScreen(repo, hub)
                 Screen.NERD -> NerdScreen(repo, hub)
                 Screen.NOTABLE -> NotableScreen(repo)
