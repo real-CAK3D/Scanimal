@@ -260,9 +260,7 @@ fun NerdScreen(repo: GameRepository, hub: SensorHub) {
                     "• Developer options → Wi-Fi scan throttling OFF: the Wi-Fi radar and spectrum refresh many times faster.\n" +
                     "• Developer options → Stay awake while charging: leave the HUD up on a dock.\n" +
                     "• Location → Mode: High accuracy (Wi-Fi + Bluetooth scanning ON): more satellites and steadier bearings.\n" +
-                    "• Keep Bluetooth and Wi-Fi radios ON even when 'not connected' so scans keep working.
-
-" +
+                    "• Keep Bluetooth and Wi-Fi radios ON even when 'not connected' so scans keep working.\n\n" +
                     "Spotting gear: Scanimal flags likely surveillance cameras, license-plate readers, mesh and LoRa (Meshtastic) devices from their public radio fingerprints — names, Bluetooth service IDs and MAC vendors. It's a guess, never a confirmation, and it only ever listens. A phone can't receive LoRa RF, so LoRa nodes are spotted by their Bluetooth.",
                 color = Pal.sub, fontSize = 12.sp, lineHeight = 18.sp,
             )
