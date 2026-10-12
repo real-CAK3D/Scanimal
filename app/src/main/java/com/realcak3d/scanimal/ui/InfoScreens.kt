@@ -176,6 +176,7 @@ fun ProfileScreen(repo: GameRepository) {
         }
         Spacer(Modifier.height(10.dp))
         Panel(Modifier.padding(horizontal = 12.dp), title = "Vital records") {
+            KeyValue("Species", "${b.species.emoji} ${b.species.label}")
             KeyValue("Sex", b.sex.label)
             KeyValue("Age", if (b.hatched) "${b.ageYears(now)} buddy-years (${"%.1f".format(b.ageHours(now))} h)" else "unhatched")
             if (b.hatched) KeyValue("Born", df.format(Date(b.bornAt)))
@@ -193,6 +194,8 @@ fun ProfileScreen(repo: GameRepository) {
                 "Codes eaten" to C.SCANS, "Different codes" to C.UNIQUE_CODES, "QR codes" to C.QR, "Grocery barcodes" to C.PRODUCT,
                 "NFC tags" to C.NFC, "Legendary foods" to C.LEGENDARY, "Wi-Fi networks sniffed" to C.WIFI, "Open networks" to C.WIFI_OPEN,
                 "Bluetooth friends" to C.BT, "Radar lock-ons" to C.RADAR_LOCKS, "Max satellites" to C.SATS_MAX, "Steps together" to C.STEPS,
+                "Distance (m)" to C.DISTANCE_M, "Walks" to C.WALKS, "Connections" to C.CONNECTIONS, "Cell towers" to C.CELLS,
+                "Device kinds" to C.DEVICE_TYPES, "Friends" to C.FRIENDS, "Nearby meetups" to C.NEARBY_MEETS, "Messages sent" to C.MESSAGES,
                 "Chats" to C.CHATS, "Games played" to C.GAMES, "Games won" to C.GAME_WINS, "Pets" to C.PETS, "Coins earned" to C.COINS_EARNED,
                 "Lives lost" to C.DEATHS,
             ).forEach { (k, key) -> KeyValue(k, "${g.count(key)}") }

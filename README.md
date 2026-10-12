@@ -1,46 +1,59 @@
-# Scanimal 📡🐣
+# Scanimal 🐾📡
 
-A pocket buddy for Android that you feed by **scanning things**: barcodes, QR codes, shipping labels, boarding passes and NFC tags. It sniffs **Wi-Fi** and **Bluetooth** with a pulsing, vibrating **radar**, stargazes at **GPS satellites**, counts your **steps**, dances to **music**, gets sleepy in the **dark**, and talks back with an old-school, rule-based **phrase brain**. No AI service and no account. Everything runs on the phone.
+A pocket buddy for Android, tamagotchi-style, that you raise by **scanning the world around you**. Feed it barcodes, QR codes, shipping labels, tickets and NFC tags. Take it on **walks**. It sniffs **Wi-Fi**, **Bluetooth** and **cell towers** with a pulsing, vibrating **radar**, stargazes at **GPS satellites**, and meets **other Scanimals nearby**. It talks back with an old-school, rule-based phrase brain. There's no AI service and no account, and everything is saved on your phone.
+
+## Download
+
+Get `Scanimal-x.y.z.apk` from [Releases](../../releases/latest). Open it on your phone and allow "Install unknown apps" when asked. After that, the app checks for updates itself. You can turn this off in Settings → Updates.
+
+## Getting started
+
+1. **Intro.** Tell your buddy a little about yourself: name, birthday, favorite color and food, hobby, pet. It remembers these and brings them up in conversation, and it throws a party on your birthday.
+2. **Choose a species:** Blip, Dino, Dog, Cat, Chameleon, Sprout (grows from sprout to flower to tree), Fish, Bird, Human, Alien or Robot. Every egg also rolls a random color, pattern and personality.
+3. **Name it and pick a sex** (boy, girl or mystery).
+4. **Incubate.** The egg takes about 15 minutes to hatch. Tap it to warm it, and scan things to give it energy and hatch it faster.
+5. **Raise it.** It grows from Baby to Child, Teen, Adult and Elder (1 real day = 1 buddy year).
 
 ## Features
 
-**Life sim (tamagotchi-style)**
-- Name, sex (boy, girl or mystery), age (1 real day = 1 buddy year) and life stages: Egg → Baby → Child → Teen → Adult → Elder
-- Vitals: fullness, happiness, energy, hygiene, health. Traits: fitness, smarts, social, discipline. Also weight.
-- Each egg rolls a unique color, pattern (plain, spots, stripes or stars) and personality (Curious, Foodie, Social, Sleepy, Sporty or Nerdy). Personality changes how the buddy's stats drift.
-- Poop, sickness, medicine, baths, sleep and wake, tantrums (scold or praise), night-time auto-sleep
-- **Lives:** 3 to start, up to 5. You earn one every 10 levels or buy one. Neglect costs a life, and losing all of them ends the run. Achievements, coins and items carry over to the next generation, and a Hall of Memories lists past buddies.
-- Being away from the app for less than 48 hours can't kill your buddy.
-- Levels, XP and coins
+**Life sim**
+- Vitals: fullness, happiness, energy, hygiene and health. Traits: fitness, smarts, social and discipline. Also weight.
+- Poop, sickness, medicine, baths, sleep, tantrums (scold or praise) and night-time auto-sleep
+- **Lives:** 3 to start, up to 5. Neglect costs a life. When all are gone, a new generation starts, and achievements, coins, items and friends carry over. A Hall of Memories lists past buddies.
+- Levels, XP, coins, a journal and 85 achievements
 
-**Feeding by scanning** (CameraX + ML Kit, works offline)
-- Every code always produces the same food, generated from the code's contents: name, family, rarity (Common to Legendary) and a trait (Healthy, Junk, Spicy, Caffeinated, Spoiled and others).
+**Feeding by scanning** (works offline)
+- Every code always makes the same food: name, family, rarity (Common to Legendary) and a trait (Healthy, Junk, Spicy, Spoiled and others).
 - Grocery barcodes can look up the real product name and Nutri-Score from Open Food Facts. You can turn this off.
-- QR content changes the flavor: links, Wi-Fi, contacts, map and text codes each taste different.
-- Shipping labels, tickets and boarding passes, and **NFC tags** each count as their own food type.
-- Eating the same code repeatedly gives less each time. A third helping in a day gets refused.
+- QR codes for links, Wi-Fi, contacts and maps each taste different. Shipping labels, tickets and **NFC tags** count as their own food types.
 
-**Radar and sensors**
-- Bluetooth LE plus classic discovery, and Wi-Fi scanning
-- **Directional radar:** turn in a circle and the buddy learns which compass heading has the strongest signal (your body blocks part of it). It then shows a bearing arrow, an uncertainty wedge and an estimated distance. The ping and vibration speed up as you get closer and get stronger when you face the signal.
-- GNSS sky view: GPS, GLONASS, Galileo, BeiDou, QZSS, SBAS and NavIC satellites plotted by azimuth and elevation
-- Step counter, shake detection, light sensor (gets sleepy in the dark), proximity sensor (peekaboo), barometer and altitude, magnetometer (magnet detector), battery and charging, microphone (dance party)
-- Haptics and beeps everywhere
+**Walks and the outdoors**
+- GPS **distance traveled**, walk sessions (distance, time, steps, pace) and a step counter
+- Walking or running gives exercise. Car rides still count toward distance, but they count as road trips, not exercise.
+- **Background mode** (optional): keeps counting walks, steps and signals with the app closed.
 
-**Talking**
-- ELIZA-style chat: keyword rules, pronoun reflection, memory (your name, likes, favorites, notes) and mood-aware replies
-- A large randomized phrase library. Babies babble, teens use slang and elders hand out wisdom.
-- Jokes, riddles, stories, songs, fortunes, fun facts, guess-the-number, rock-paper-scissors, dice, coin flips and simple math
+**Signals**
+- **Radar:** pulsing pings and vibration that speed up as you get closer to a signal. Turn in a circle and it estimates which direction the signal is coming from.
+- **Device catalog:** every Bluetooth device, Wi-Fi network and cell tower it finds. It guesses what each one is (earbuds, watch, TV, car, tracker, speaker and others) and counts how often it has been seen and connected.
+- Each kind of device has its own effect on your buddy. Being **connected** to a device or network gives a bigger bonus.
+- **Spectrum lab:** Wi-Fi channel analyzer (2.4, 5 and 6 GHz), signal-strength history graph, microphone oscilloscope with FFT spectrum and note detection, and an EMF (magnetometer) graph
+- **Sky:** GPS, GLONASS, Galileo, BeiDou, QZSS, SBAS and NavIC satellites plotted overhead
 
-**More**
-- 4 mini-games: Byte Catcher (tilt), Signal Simon, Quick Blip (reflexes), Code Match
-- Shop: consumables, 9 hats and accessories, 6 paint jobs including animated Prism Paint
-- 60+ achievements, journal, lifetime stats, Bluetooth friend list
-- Care reminder notifications every 30 minutes via WorkManager
+**Friends**
+- **Link codes:** a QR code and a text code you can share through any app. Friends scan or paste the code to add your buddy.
+- **Nearby:** discoverable Scanimals find each other over Bluetooth LE, with no internet needed. You can turn discoverable on or off.
+- Up to **5 visiting buddies** can hang out on your home screen. Wave, hug, play, give gifts, have dance-offs and send messages.
+- Messages go directly over Bluetooth when the friend is nearby. Otherwise the app makes a postcard code you can send any way you like.
 
-## Install
+**Fun**
+- **Physics:** tilt to slide your buddy and shake to fling it off the walls.
+- **8 themes:** Radar, Sunset, Ocean, Forest, Retro LCD, Candy, Daylight and Midnight
+- 15 hats, 9 outfits and 6 paint jobs in the shop
+- Mini-games: Byte Catcher, Signal Simon, Quick Blip and Code Match
+- ELIZA-style chat with memory, jokes, riddles, stories, songs, fortunes, guess-the-number, rock-paper-scissors, dice and math
+- Sensors: light (sleepy in the dark), proximity (peekaboo), barometer and altitude, magnet detector, charging, microphone (dance party), NFC
 
-Grab `Scanimal-x.y.z.apk` from **Releases**, open it on your phone and allow "install unknown apps". When asked, grant the permissions. Each one is explained in More → Settings.
+**Settings:** updates, information about you, theme, physics, visitors, chatter, background mode, discoverable, units, product lookup, reminders, vibration, beeps, a stats summary, backup export and import, permissions, and reset.
 
 ## Build
 
@@ -49,16 +62,18 @@ Grab `Scanimal-x.y.z.apk` from **Releases**, open it on your phone and allow "in
 ./gradlew testDebugUnitTest   # game-rule tests
 ```
 
-Requires JDK 17+ and the Android SDK (compileSdk 35). Pushing a tag like `v1.0.0` makes GitHub Actions build a signed APK and attach it to a GitHub Release.
+Requires JDK 17+ and the Android SDK (compileSdk 35, minSdk 26).
 
-**Signing:** CI uses the secrets `SCANIMAL_KEYSTORE` (path), `SCANIMAL_KEYSTORE_PASSWORD`, `SCANIMAL_KEY_ALIAS` and `SCANIMAL_KEY_PASSWORD` when they are set. Otherwise it falls back to the bundled hobby keystore `app/scanimal-release.jks` (password `blipling`), so every build can update the last one. That key is public, so swap in your own before sharing the app widely.
+**Release:** push a tag like `v1.0.1`. GitHub Actions then builds a signed APK and publishes a GitHub Release, and installed apps pick it up through the in-app updater.
+
+**Signing:** CI uses the secrets `SCANIMAL_KEYSTORE` (path), `SCANIMAL_KEYSTORE_PASSWORD`, `SCANIMAL_KEY_ALIAS` and `SCANIMAL_KEY_PASSWORD` when they are set. Otherwise it falls back to the bundled hobby keystore `app/scanimal-release.jks` (password `scanimal`), so every release can update the last one. That key is public, so switch to your own before distributing widely. Note that changing keys means uninstalling once.
 
 ## Code map
 
 | Path | What |
 |---|---|
-| `core/` | Pure Kotlin game rules (unit-tested): `Engine`, `Food`, `Phrases`, `Chat`, `Achievements`, `Items`, `RadarTracker`, `Codec` |
-| `data/GameRepository` | Single source of truth and save file (SharedPreferences JSON) |
-| `sensors/` | Wi-Fi, Bluetooth, GNSS, motion/light/proximity/pressure/magnet/steps, mic, haptics, NFC feeding |
-| `ui/` | Jetpack Compose screens and the hand-drawn vector buddy (`BuddyView`) |
-| `work/CareWorker` | Background reminders |
+| `core/` | Pure Kotlin game rules (unit-tested): `Engine`, `Food`, `Phrases`, `Chat`, `Achievements`, `Items`, `Devices`, `RadarTracker`, `BuddyAdvert`, `Dsp`, `Codec` |
+| `data/GameRepository` | Single source of truth and save file |
+| `sensors/` | Wi-Fi, Bluetooth, cells, GNSS, motion and environment sensors, mic, distance tracker, BLE buddy link, haptics |
+| `ui/` | Jetpack Compose screens, the vector buddy renderer (`BuddyView`, `SpeciesArt`), physics, themes |
+| `work/` | Care reminders, background service, GitHub updater |
