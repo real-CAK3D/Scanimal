@@ -148,6 +148,7 @@ fun SettingsScreen(repo: GameRepository, hub: SensorHub, requestPermissions: () 
             Toggle("Physics", "Shake and tilt the phone to bounce your buddy around", s.physics) { v -> set { physics = v } }
             Toggle("Show visiting friends", "Up to 5 friend buddies hang out on your home screen", s.showVisitors) { v -> set { showVisitors = v } }
             Toggle("Ambient chatter", "Your buddy talks on its own every so often", s.ambientChatter) { v -> set { ambientChatter = v } }
+            Toggle("Mature language", "Lets your buddy swear and get sarcastic. Turn off for clean, kid-friendly talk", s.matureLanguage) { v -> set { matureLanguage = v } }
             Text("Outfits, hats and paint jobs are in the Shop.", color = Pal.sub, fontSize = 11.sp, modifier = Modifier.clickable { go(Screen.SHOP) })
         }
 

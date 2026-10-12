@@ -155,7 +155,8 @@ class ChatBrain(private val engine: Engine, private val rnd: Random = Random.Def
         }
         if (words.any { it in setOf("joke", "jokes", "funny", "laugh") }) {
             g.bump(C.JOKES)
-            return Reply(Phrases.jokes.random(rnd), engine.checkAchievements(now), Anim.HAPPY)
+            val jk = if (g.settings.matureLanguage) Phrases.jokes + Phrases.matureJokes else Phrases.jokes
+            return Reply(Phrases.fill(jk.random(rnd), engine.ctx(now), rnd), engine.checkAchievements(now), Anim.HAPPY)
         }
         if (words.any { it in setOf("riddle", "puzzle") }) {
             val rd = Phrases.riddles.random(rnd)
@@ -165,7 +166,11 @@ class ChatBrain(private val engine: Engine, private val rnd: Random = Random.Def
         if (w("story")) return Reply(Phrases.randomStory(b.name, rnd), anim = Anim.HAPPY)
         if (words.any { it in setOf("sing", "song", "music") }) return Reply(Phrases.randomSong(rnd), anim = Anim.DANCE)
         if (words.any { it in setOf("fortune", "future", "predict") }) return Reply("🔮 ${Phrases.fortunes.random(rnd)}")
-        if (words.any { it in setOf("fact", "facts", "teach", "learn") }) return Reply("Did you know? ${Phrases.facts.random(rnd)}")
+        if (words.any { it in setOf("fact", "facts", "teach", "learn") }) {
+            val f = if (g.settings.matureLanguage) Phrases.facts + Phrases.facts2 else Phrases.facts
+            return Reply(Phrases.fill("Did you know? ${f.random(rnd)}", engine.ctx(now), rnd))
+        }
+        if (words.any { it in setOf("sarcasm", "sarcastic", "roast", "insult") }) return Reply(Phrases.quip(engine.ctx(now), rnd), anim = Anim.NONE)
         if (t.contains("guess") || t.contains("number game") || t.contains("higher or lower")) {
             pendingNumber = rnd.nextInt(1, 101); guesses = 0
             return Reply("I'm thinking of a number from 1 to 100. You get 8 guesses. Go!")

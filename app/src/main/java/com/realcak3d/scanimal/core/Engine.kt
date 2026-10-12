@@ -30,7 +30,7 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
 
     fun ctx(now: Long, food: String = "snack", thing: String = "thing", n: Int = 0) = Phrases.Ctx(
         name = b.name.ifBlank { "Buddy" }, owner = g.ownerName, stage = b.stage(now),
-        food = food, thing = thing, n = n, happiness = s.happiness,
+        food = food, thing = thing, n = n, happiness = s.happiness, mature = g.settings.matureLanguage,
     )
 
     fun say(topic: Topic, now: Long, anim: Anim = Anim.NONE, food: String = "snack", thing: String = "thing", n: Int = 0) =
@@ -1119,6 +1119,44 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
         val h = java.util.Calendar.getInstance().apply { timeInMillis = now }.get(java.util.Calendar.HOUR_OF_DAY)
         if (h in 0..4) award("special:nightowl", now, ev)
         if (h in 4..5) award("special:earlybird", now, ev)
+        return ev
+    }
+
+    // ---------------------------------------------------------------- toys
+
+    val toyNames = linkedMapOf("ball" to "⚽", "bone" to "🦴", "mouse" to "🐭", "yarn" to "🧶", "stick" to "🥢", "disc" to "🥏", "cube" to "🧊")
+
+    fun placeToy(type: String, x: Float, now: Long): List<GameEvent> {
+        g.toy = type; g.toyX = x.coerceIn(0.06f, 0.94f)
+        g.log(now, toyNames[type] ?: "🎾", "Tossed a ${type} into the room.")
+        return if (b.hatched) listOf(say(if (g.settings.matureLanguage) Topic.GAME_WIN else Topic.IDLE_HAPPY, now, Anim.HAPPY)) else emptyList()
+    }
+
+    fun removeToy(now: Long): List<GameEvent> {
+        g.toy = null
+        return emptyList()
+    }
+
+    /** The buddy pokes the toy on its own (UI calls when they meet while wandering). */
+    fun toyInteract(now: Long): List<GameEvent> {
+        val toy = g.toy ?: return emptyList()
+        if (!b.hatched || b.asleep || !onceEvery("toy", now, 30_000L)) return emptyList()
+        val ev = mutableListOf<GameEvent>()
+        // Bored + toy = fun; but sometimes the buddy is annoyed it's underfoot.
+        val annoyed = s.happiness > 55 && rnd.nextInt(3) == 0
+        if (annoyed) {
+            g.bump(C.TOY_ANNOYED); s.happiness -= 2; s.clampAll()
+            ev += GameEvent.Say(if (g.settings.matureLanguage)
+                listOf("Ugh, this ${toy}'s in my {madj} way.".let { Phrases.fill(it, ctx(now), rnd) }, "Move the ${toy}, it's underfoot.", "Who left this ${toy} here? Rude.").random(rnd)
+                else listOf("This ${toy} is in my way!", "*trips over the ${toy}*", "Move the ${toy} please?").random(rnd), Anim.ANGRY)
+        } else {
+            g.bump(C.TOY_PLAYS); s.happiness += 5; s.energy -= 3; s.fitness += 1; s.clampAll()
+            ev += GameEvent.Say(if (g.settings.matureLanguage)
+                listOf("Oh hell yeah, ${toy} time!", "*bats the ${toy} around* Mine!", "This ${toy} {curse}in' rules.".let { Phrases.fill(it, ctx(now), rnd) }).random(rnd)
+                else listOf("Wheee, ${toy}!", "*plays with the ${toy}*", "My favorite ${toy}!").random(rnd), Anim.HAPPY)
+            ev += gainXp(2, now)
+        }
+        ev += checkAchievements(now)
         return ev
     }
 

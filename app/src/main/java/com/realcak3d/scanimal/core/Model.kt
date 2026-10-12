@@ -228,6 +228,7 @@ data class Settings(
     var accentHue: Int = -1,       // -1 = use theme default; else 0..359 custom accent
     var bigText: Boolean = false,
     var spriteArt: Boolean = true,
+    var matureLanguage: Boolean = true,
 )
 
 /** A signal seen by the radar (Wi-Fi network or Bluetooth device). */
@@ -280,6 +281,8 @@ class GameData(
     var favoriteFood: String = "",
     var bestScores: MutableMap<String, Int> = mutableMapOf(),
     var created: Long = 0L,
+    var toy: String? = null,
+    var toyX: Float = 0.5f,
     var myId: String = "",
     var owner: OwnerProfile = OwnerProfile(),
     val devices: MutableMap<String, DeviceRecord> = mutableMapOf(),
@@ -383,6 +386,9 @@ object C {
     const val MOONLIGHT = "moonlight_moments"
     const val DISCOVERIES_MAPPED = "discoveries_mapped"
     const val DEV_SNIFFS = "dev_sniffs"
+    const val TOY_PLAYS = "toy_plays"
+    const val TOY_ANNOYED = "toy_annoyed"
+    const val WANDERS = "wanders"
     const val SURVEILLANCE = "surveillance_seen"
     const val ALPR = "alpr_seen"
     const val MESH = "mesh_seen"

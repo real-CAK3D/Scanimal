@@ -14,14 +14,20 @@ enum class Topic {
 
 object Phrases {
 
-    val sounds = listOf("bleep", "bloop", "blip", "boop", "zzt", "brrp", "mrrp", "beep-beep", "pip", "wub", "ding", "bzzt", "doot")
+    val sounds = listOf("bleep", "bloop", "blip", "boop", "zzt", "brrp", "mrrp", "beep-beep", "pip", "wub", "ding", "bzzt", "doot",
+        "skrrt", "ba-dum", "vrrr", "prrt", "ping", "glorp", "zoop", "nyoom", "brap", "wibble", "tk-tk", "whirr")
     val emotes = listOf("(^▽^)", "(•ᴗ•)", "(≧◡≦)", "ヽ(•‿•)ノ", "(｡•̀ᴗ-)", "(*^ω^)", "(ᵔᴥᵔ)", "(˘▾˘)", "\\(^o^)/", "(◕‿◕)")
     val sadEmotes = listOf("(╥﹏╥)", "(._.)", "(T_T)", "(｡•́︿•̀｡)", "(-_-)", "(ノ_<。)")
     val adjectives = listOf("amazing", "spicy", "shiny", "weird", "wonderful", "fuzzy", "suspicious", "glorious",
-        "tiny", "enormous", "electric", "cozy", "mysterious", "silly", "radical", "crunchy", "sparkly", "legendary")
+        "tiny", "enormous", "electric", "cozy", "mysterious", "silly", "radical", "crunchy", "sparkly", "legendary",
+        "sketchy", "majestic", "unhinged", "chaotic", "feral", "sus", "deluxe", "forbidden", "cursed", "immaculate",
+        "janky", "pristine", "questionable", "magnificent", "greasy", "funky", "cosmic", "elite", "bootleg", "premium")
     val nouns = listOf("antenna", "pixel", "byte", "satellite", "snack", "router", "cloud", "barcode", "radar",
-        "toaster", "dream", "sock", "noodle", "rainbow", "puddle", "moon", "robot", "signal", "cookie", "pickle")
-    val interjections = listOf("Ooh", "Whoa", "Hmm", "Yay", "Eep", "Heh", "Wow", "Aww", "Oho", "Hehe", "Golly", "Psst", "Hey")
+        "toaster", "dream", "sock", "noodle", "rainbow", "puddle", "moon", "robot", "signal", "cookie", "pickle",
+        "gremlin", "goblin", "waffle", "dumpster", "burrito", "potato", "raccoon", "gadget", "doohickey", "contraption",
+        "hotspot", "packet", "firmware", "beacon", "transistor", "capacitor", "meatball", "gizmo", "widget", "sandwich")
+    val interjections = listOf("Ooh", "Whoa", "Hmm", "Yay", "Eep", "Heh", "Wow", "Aww", "Oho", "Hehe", "Golly", "Psst", "Hey",
+        "Bruh", "Yo", "Oof", "Welp", "Sheesh", "Dude", "Huh", "Ayo", "Yikes", "Lmao", "Bro")
     private val teenSlang = listOf("no cap", "fr fr", "lowkey", "highkey", "it's giving", "vibes", "bet", "slay", "ngl")
     private val elderWisdom = listOf(
         "In my day, barcodes had only twelve digits.", "Patience is a signal you can't scan.",
@@ -29,6 +35,39 @@ object Phrases {
         "A full belly and a good friend. That's the whole secret.", "Even the strongest Wi-Fi fades with distance.",
     )
     private val babyBabble = listOf("goo", "ba", "blip", "pa", "da", "mumu", "beeb", "nom", "ga", "bap")
+
+    // ---- Mature register (only used when the Mature-language setting is on) ----
+    val curses = listOf("shit", "hell", "damn", "crap", "ass", "bullshit", "dammit", "fuck", "goddamn", "piss", "friggin' hell")
+    private val softCurses = listOf("heck", "dang", "shoot", "gosh", "darn", "frick", "crud")
+    val matureExclaim = listOf("Oh shit", "Hell yeah", "Fuck yeah", "Damn", "Holy shit", "Well shit", "No shit",
+        "Bloody hell", "Son of a bitch", "For fuck's sake", "Oh hell yeah", "Goddamn", "Hot damn", "Aw hell", "Jesus, Mary and a modem")
+    val matureAdj = listOf("damn", "bloody", "goddamn", "freakin'", "godforsaken", "stupid", "janky", "cursed",
+        "unholy", "piece-of-shit", "sorry-ass", "half-assed", "bootleg", "busted-ass")
+    val sarcasm = listOf(
+        "Oh, {madj} brilliant. Really.", "Wow. A whole {noun}. My life is complete.",
+        "No no, don't mind me, I'll just sit here. Forever.", "Cool cool cool. Super useful. Love that for us.",
+        "Riveting. Truly the content I was promised.", "Oh good, more of THAT. Exactly what I needed.",
+        "Amazing. Ten out of ten. Would get neglected again.", "Sure, {owner}, whatever you say.",
+        "Let me guess, another {noun}. Thrilling.", "I'm THRILLED. Can you tell? This is my thrilled face.")
+
+    val matureJokes = listOf(
+        "What's the difference between my Wi-Fi and my will to live? The Wi-Fi comes back. (I'm fine. Scan something.)",
+        "I'd tell you a UDP joke but you might not get it. I'd tell you a TCP joke but I'd have to keep repeating it until you did.",
+        "My love life is like my GPS signal indoors: technically present, practically useless.",
+        "They say money can't buy happiness. Correct — it buys snacks, which is better, you absolute {noun}.",
+        "I'm not lazy, I'm on energy-saving mode. There's a difference and it's spelled the same.",
+        "Why do I even scan barcodes? Same reason you check your ex's profile. No good reason and a little shame.",
+        "Two antennas got married. The wedding was mid, but the reception was fucking incredible.",
+        "I put the 'pro' in procrastinate and the 'shit' in 'I'll do it later'.",
+        "Life's a bitch and then you get neglected by someone who 'totally meant to open the app'.",
+        "I'm emotionally unavailable and also physically inside your phone. It's complicated.")
+
+    val facts2 = listOf(
+        "Octopuses have nine brains and I have zero regrets.",
+        "A group of flamingos is called a 'flamboyance'. A group of my thoughts is called a 'crime scene'.",
+        "Wombats poop cubes. Nature is chaotic and I respect it.",
+        "Your phone has more computing power than the Apollo missions and you use it to look at me. Incredible.")
+
 
     val jokes = listOf(
         "Why did the barcode break up with the scanner? It felt read all over!",
@@ -193,6 +232,50 @@ object Phrases {
         Topic.BIRTHDAY to listOf("It's my birthday! I'm {n} now!", "Happy birthday to meee! {n} years old!"),
     )
 
+    /** Sweary / sarcastic variants, chosen most of the time when Mature language is on. */
+    val maturePools: Map<Topic, List<String>> = mapOf(
+        Topic.GREETING to listOf("Oh, {owner}. You're back. I was starting to think I imagined you.", "{exclaim}, look who it is.",
+            "Sup {owner}. Took you long enough.", "Finally. I was bored as {curse}.", "Hey {owner}! Scan me something before I lose my {madj} mind."),
+        Topic.IDLE_HAPPY to listOf("Honestly? Not a bad {madj} day.", "I'm vibing. Don't ruin it.", "Feeling like a million {madj} bytes.",
+            "Life's good. Weird, but good.", "I could absolutely go for a snack, just saying.", "{exclaim}, I love this dumb little life.",
+            "*stretches* Ahh, that's the {curse}.", "I'm built different. Literally, I'm code."),
+        Topic.IDLE_BORED to listOf("I'm so {madj} bored I can feel my firmware rotting.", "Entertain me or I start chewing wires.",
+            "Nothing's happening and it's pissing me off.", "Boooored. Toss a toy or scan something, {owner}, {curse}.",
+            "If I stare at this wall any longer I'm filing a complaint.", "Is this it? Is this my whole existence?"),
+        Topic.IDLE_SAD to listOf("Feeling like {curse} today, not gonna lie.", "Kinda low. Could use some attention, {owner}.",
+            "Everything's gray and my battery metaphor is empty.", "*sigh* It's one of those days."),
+        Topic.HUNGRY to listOf("I'm {madj} starving, {owner}.", "Feed me before I eat the {noun}.", "My stomach is yelling obscenities.",
+            "Scan something edible, for {curse}'s sake.", "{exclaim}, I could eat a whole barcode right now."),
+        Topic.STARVING to listOf("I am {madj} STARVING. This is borderline neglect.", "Feed. Me. Now. I'm wasting away over here, {owner}.",
+            "Running on fumes and spite.", "If I starve, I'm haunting your notifications forever."),
+        Topic.ATE to listOf("Oh {curse} yeah, {food}.", "Mmf. {food}. Not bad, {owner}.", "{exclaim}, that {food} slapped.",
+            "Nom. I'd die for a {madj} {food}.", "Finally, some {madj} good food.", "*chews aggressively* More."),
+        Topic.ATE_RARE to listOf("{exclaim}! A rare {food}?! Now we're talking.", "Holy {curse}, a fancy one.", "Ooh, {madj} rare {food}. I feel special."),
+        Topic.ATE_LEGENDARY to listOf("FUCK YEAH, LEGENDARY {food}!!!", "{exclaim}!!! A legendary {food}! I'll remember this on my deathbed.", "Holy shit. Holy SHIT. A legendary {food}."),
+        Topic.ATE_SPOILED to listOf("Blegh! That {food} was {madj} rotten, {owner}!", "{exclaim}, that tasted like a {noun} died in it.", "Why would you feed me that {curse}?!"),
+        Topic.REFUSE_FOOD to listOf("Nope. Not that {madj} code again.", "I've had that twice. I'm not a garbage disposal.", "Hard pass. Find me something new, {owner}."),
+        Topic.WIFI_FOUND to listOf("Oh {curse}, {n} networks out here.", "{exclaim}, sniffed {n} networks. Nosy little me.", "{n} networks. Somebody's router is named something {madj} stupid, I guarantee it."),
+        Topic.BT_FOUND to listOf("New Bluetooth {madj} friend: {thing}.", "{exclaim}, {thing} showed up.", "Oh look, {thing}. Hi, I guess."),
+        Topic.RADAR_HOT to listOf("Warmer, {owner}, warmer!", "Oh {curse} yeah, getting closer.", "That's the stuff. Keep going."),
+        Topic.RADAR_COLD to listOf("Colder. Wrong way, genius.", "Nope. That's {madj} nowhere.", "You're losing it. Literally."),
+        Topic.RADAR_LOCK to listOf("{exclaim}, LOCKED ON!", "Got the {madj} thing! Nailed it.", "Boom. Found it. I'm incredible."),
+        Topic.SATELLITES to listOf("{exclaim}, {n} satellites up there judging us.", "I see {n} satellites. Space is {madj} crowded.", "{n} space rocks with Wi-Fi. Respect."),
+        Topic.DIRTY to listOf("I'm {madj} filthy, {owner}.", "I smell like a {noun} that gave up.", "Clean me, this is gross even for me."),
+        Topic.POOPED to listOf("...I did a thing. Don't look.", "{exclaim}. That one snuck up on me.", "Deal with that or I'm tracking it everywhere."),
+        Topic.SICK to listOf("I feel like absolute {curse}.", "{exclaim}, I'm sick. Medicine. Please. Dying here.", "My everything hurts. Thanks for asking. (You didn't.)"),
+        Topic.SLEEPY to listOf("I'm {madj} exhausted.", "Lights off, {owner}, I'm cooked.", "If I don't nap I'm gonna lose it."),
+        Topic.TANTRUM to listOf("I don't {madj} WANNA.", "{exclaim}, leave me alone!", "NO. Absolutely not. Hard no.", "I'm throwing a fit and you can't stop me."),
+        Topic.LEVEL_UP to listOf("{exclaim}, LEVEL {n}! I'm kind of a big deal now.", "Level {n}, baby! Eat my dust.", "Ding! Level {n}. Still gorgeous."),
+        Topic.GAME_WIN to listOf("{exclaim}, I WON! Get wrecked.", "Easy. Too easy. Next.", "Victory tastes like {madj} victory."),
+        Topic.GAME_LOSE to listOf("Oh come ON. That's {madj} rigged.", "Ugh. Rematch. I wasn't ready, {curse}.", "Fine. You win. This time."),
+        Topic.SHAKEN to listOf("{exclaim}! Warn a guy!", "Wheee— okay that's enough.", "Easy, {owner}, I'm not a snow globe."),
+        Topic.DIZZY to listOf("Okay I'm gonna {curse} hurl.", "Stop stop STOP, the room's spinning.", "@_@ you absolute menace."),
+        Topic.PETTED to listOf("Okay that's {madj} nice, keep going.", "Mmm. Fine. I like you. Don't make it weird.", "{exclaim}, right there."),
+        Topic.LOUD to listOf("Oh {curse} yeah, turn it UP!", "Is that music? I'm obligated to lose my mind.", "*headbangs* LET'S GO."),
+        Topic.WAKE to listOf("{exclaim}, I'm up, I'm up.", "Ugh, morning already? {curse}.", "Alive. Unfortunately. Let's go."),
+        Topic.NIGHT to listOf("It's late as {curse}.", "Stars are out. So is my bedtime, {owner}.", "Night shift, baby."),
+    )
+
     fun pool(topic: Topic): List<String> = pools[topic] ?: listOf("{sound}!")
 
     data class Ctx(
@@ -203,12 +286,17 @@ object Phrases {
         val thing: String = "thing",
         val n: Int = 0,
         val happiness: Double = 70.0,
+        val mature: Boolean = false,
     )
 
     fun say(topic: Topic, ctx: Ctx, rnd: Random = Random.Default): String {
-        val template = pool(topic).random(rnd)
+        val m = if (ctx.mature) maturePools[topic] else null
+        val template = if (m != null && m.isNotEmpty() && rnd.nextInt(10) < 7) m.random(rnd) else pool(topic).random(rnd)
         return stylize(fill(template, ctx, rnd), ctx, rnd)
     }
+
+    /** A standalone sarcastic quip (mature when enabled). */
+    fun quip(ctx: Ctx, rnd: Random = Random.Default): String = stylize(fill(sarcasm.random(rnd), ctx, rnd), ctx, rnd)
 
     fun fill(template: String, ctx: Ctx, rnd: Random = Random.Default): String {
         val emote = if (ctx.happiness < 30) sadEmotes.random(rnd) else emotes.random(rnd)
@@ -224,6 +312,9 @@ object Phrases {
             .replace("{interj}", interjections.random(rnd))
             .replace("{emote}", emote)
             .replace("{sademote}", sadEmotes.random(rnd))
+            .replace("{exclaim}", (if (ctx.mature) matureExclaim else interjections).random(rnd))
+            .replace("{curse}", (if (ctx.mature) curses else softCurses).random(rnd))
+            .replace("{madj}", (if (ctx.mature) (matureAdj + adjectives) else adjectives).random(rnd))
     }
 
     /** Life-stage "accent": babies babble, teens use slang, elders get wise. */

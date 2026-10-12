@@ -105,7 +105,7 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
 
         // Stage + speech
         Box(Modifier.fillMaxWidth().height(330.dp)) {
-            RoomBackdrop(Modifier.fillMaxSize(), night = repo.engine.isNight(now), asleep = b.asleep)
+            RoomBackdrop(Modifier.fillMaxSize(), night = repo.engine.isNight(now), asleep = b.asleep, species = b.species, hatched = b.hatched, toy = g.toy, toyX = g.toyX)
             val antenna = ((wifi.size + bt.size) / 25f).coerceIn(0f, 1f)
             val physics = remember { BuddyPhysics() }
             val bodyNow by rememberUpdatedState(body)
@@ -115,24 +115,44 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
             var py by remember { mutableFloatStateOf(0f) }
             var spin by remember { mutableFloatStateOf(0f) }
             var squash by remember { mutableFloatStateOf(0f) }
+            var wanderX by remember { mutableFloatStateOf(0f) }
+            var facing by remember { mutableFloatStateOf(1f) }
+            val toyNow by rememberUpdatedState(g.toy)
+            val toyXNow by rememberUpdatedState(g.toyX)
             LaunchedEffect(physicsOn) {
                 physics.onBump = { f -> hub.haptics.buzz((20 + f * 40).toLong(), (60 + f * 150).toInt().coerceAtMost(255)); repo.act { n -> onBump(f, n) } }
-                var last = 0L
+                var last = 0L; var target = 0f; var nextWander = 0L; var lastToy = 0L
                 while (true) {
                     withFrameMillis { t ->
                         val dt = if (last == 0L) 16L else t - last; last = t
                         physics.step(dt, bodyNow.tiltX, bodyNow.linX, bodyNow.linY, physicsOn, asleepNow)
                         px = physics.x; py = physics.y; spin = physics.spin; squash = physics.squash
+                        // Wandering: stroll to a target, pause, pick a new one; drift toward the toy sometimes.
+                        val still = kotlin.math.abs(physics.x) < 0.15f && physics.y < 0.05f
+                        if (asleepNow || !still) { /* hold position */ }
+                        else {
+                            if (t >= nextWander) {
+                                val tx = toyXNow
+                                target = if (toyNow != null && kotlin.random.Random.nextInt(3) == 0) ((tx - 0.5f) * 1.7f).coerceIn(-0.85f, 0.85f)
+                                         else kotlin.random.Random.nextFloat() * 1.7f - 0.85f
+                                nextWander = t + 2500L + kotlin.random.Random.nextLong(5000L)
+                            }
+                            val d = target - wanderX
+                            if (kotlin.math.abs(d) > 0.01f) { facing = if (d > 0) 1f else -1f; wanderX += d.coerceIn(-1f, 1f) * (dt / 1000f) * 0.6f }
+                            // Reached the toy? poke it (throttled; engine throttles too).
+                            val toyPos = (toyXNow - 0.5f) * 1.7f
+                            if (toyNow != null && kotlin.math.abs(wanderX - toyPos) < 0.1f && t - lastToy > 20000L) { lastToy = t; repo.act { n -> toyInteract(n) } }
+                        }
                     }
                 }
             }
             BuddyView(
                 look = g.look(now), anim = speech.anim, animAt = speech.at,
                 modifier = Modifier.fillMaxSize().graphicsLayer {
-                    translationX = px * size.width * 0.32f
+                    translationX = (px + wanderX) * size.width * 0.30f
                     translationY = -py * size.height * 0.45f
                     rotationZ = spin.coerceIn(-720f, 720f) % 360f
-                    scaleX = 1f + squash * 0.18f
+                    scaleX = (1f + squash * 0.18f) * facing
                     scaleY = 1f - squash * 0.18f
                     transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0.8f)
                 },
@@ -262,13 +282,12 @@ fun SpeechBubble(text: String) {
 }
 
 @Composable
-fun RoomBackdrop(modifier: Modifier, night: Boolean, asleep: Boolean) {
+fun RoomBackdrop(modifier: Modifier, night: Boolean, asleep: Boolean, species: com.realcak3d.scanimal.core.Species = com.realcak3d.scanimal.core.Species.BLOB, hatched: Boolean = true, toy: String? = null, toyX: Float = 0.5f) {
     androidx.compose.foundation.Canvas(modifier) {
         val th = Pal.theme
         val top = if (night || asleep) Color(0xFF0A0F1F) else th.roomTop
         val bottom = if (night || asleep) Color(0xFF111A30) else th.roomBottom
         drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(top, bottom)))
-        // Radar grid floor
         val floorY = size.height * 0.8f
         drawRect(if (night || asleep) Color(0xFF0E1A2E) else th.floor, Offset(0f, floorY), androidx.compose.ui.geometry.Size(size.width, size.height - floorY))
         for (i in 0..10) {
@@ -285,6 +304,72 @@ fun RoomBackdrop(modifier: Modifier, night: Boolean, asleep: Boolean) {
             drawCircle(Color(0xFFFFF3C4), 18f, Offset(size.width * 0.85f, size.height * 0.15f))
             drawCircle(top, 16f, Offset(size.width * 0.85f + 8f, size.height * 0.15f - 4f))
         }
+        if (hatched) drawScenery(species, floorY)
+        if (toy != null) drawToy(toy, toyX * size.width, floorY - 3f)
+    }
+}
+
+/** Species-appropriate props sitting in the room, behind the buddy. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawScenery(species: com.realcak3d.scanimal.core.Species, floorY: Float) {
+    val w = size.width; val u = w / 100f
+    when (species) {
+        com.realcak3d.scanimal.core.Species.DINO -> {
+            // A twig nest on the ground to the left.
+            val nx = w * 0.16f
+            drawOval(Color(0xFF6D4C41), Offset(nx - 13 * u, floorY - 5 * u), androidx.compose.ui.geometry.Size(26 * u, 9 * u))
+            drawArc(Color(0xFF8D6E63), 200f, 140f, false, Offset(nx - 13 * u, floorY - 10 * u), androidx.compose.ui.geometry.Size(26 * u, 12 * u), style = androidx.compose.ui.graphics.drawscope.Stroke(2f))
+            for (e in listOf(-4f, 0f, 4f)) drawOval(Color(0xFFEFE3C0), Offset(nx + e * u - 2.2f * u, floorY - 6 * u), androidx.compose.ui.geometry.Size(4.4f * u, 3.4f * u))
+        }
+        com.realcak3d.scanimal.core.Species.BIRD -> {
+            // A tree with a perch branch on the right.
+            val tx = w * 0.84f
+            drawRect(Color(0xFF5D4037), Offset(tx - 2 * u, floorY - 44 * u), androidx.compose.ui.geometry.Size(4 * u, 44 * u))
+            drawLine(Color(0xFF6D4C41), Offset(tx, floorY - 30 * u), Offset(tx - 20 * u, floorY - 26 * u), 3f)
+            for (c in listOf(Triple(-18f, -40f, 12f), Triple(2f, -46f, 14f), Triple(10f, -34f, 11f)))
+                drawCircle(Color(0xFF2E7D32), c.third * u, Offset(tx + c.first * u, floorY + c.second * u))
+        }
+        com.realcak3d.scanimal.core.Species.CHAMELEON -> {
+            // A climbing branch arching across.
+            val p = androidx.compose.ui.graphics.Path().apply {
+                moveTo(w * 0.1f, floorY); cubicTo(w * 0.3f, floorY - 30 * u, w * 0.7f, floorY - 44 * u, w * 0.92f, floorY - 20 * u)
+            }
+            drawPath(p, Color(0xFF6D4C41), style = androidx.compose.ui.graphics.drawscope.Stroke(5f))
+            for (lx in listOf(0.4f, 0.6f, 0.78f)) drawCircle(Color(0xFF43A047), 7 * u, Offset(w * lx, floorY - (30 + lx * 10) * u))
+        }
+        com.realcak3d.scanimal.core.Species.PLANT -> {
+            drawCircle(Color(0xFFFFF59D).copy(alpha = 0.5f), 16 * u, Offset(w * 0.85f, floorY - 54 * u))
+            for (fx in listOf(0.15f, 0.9f)) { drawRect(Color(0xFF388E3C), Offset(w * fx - 1 * u, floorY - 12 * u), androidx.compose.ui.geometry.Size(2 * u, 12 * u)); drawCircle(Color(0xFFEC407A), 4 * u, Offset(w * fx, floorY - 13 * u)) }
+        }
+        com.realcak3d.scanimal.core.Species.FISH -> {
+            // Watery floor + seaweed + bubbles.
+            drawRect(Color(0xFF1565C0).copy(alpha = 0.18f), Offset(0f, floorY - 6 * u), androidx.compose.ui.geometry.Size(w, 6 * u))
+            for (sx in listOf(0.12f, 0.88f)) { val p = androidx.compose.ui.graphics.Path().apply { moveTo(w * sx, floorY); cubicTo(w * sx + 6 * u, floorY - 16 * u, w * sx - 6 * u, floorY - 26 * u, w * sx + 3 * u, floorY - 40 * u) }; drawPath(p, Color(0xFF2E7D32), style = androidx.compose.ui.graphics.drawscope.Stroke(3f)) }
+        }
+        com.realcak3d.scanimal.core.Species.ROBOT -> {
+            // A charging dock pad.
+            drawRect(Color(0xFF37474F), Offset(w * 0.1f, floorY - 4 * u), androidx.compose.ui.geometry.Size(22 * u, 4 * u))
+            drawCircle(Pal.sky.copy(alpha = 0.6f), 3 * u, Offset(w * 0.21f, floorY - 6 * u))
+        }
+        com.realcak3d.scanimal.core.Species.ALIEN -> {
+            for (sx in listOf(0.12f, 0.9f)) drawCircle(Pal.violet.copy(alpha = 0.5f), 3 * u, Offset(w * sx, floorY - 18 * u))
+            drawOval(Pal.violet.copy(alpha = 0.18f), Offset(w * 0.5f - 24 * u, floorY - 4 * u), androidx.compose.ui.geometry.Size(48 * u, 7 * u))
+        }
+        com.realcak3d.scanimal.core.Species.CAT -> { drawRoundRect(Color(0xFF8D6E63), Offset(w * 0.12f, floorY - 14 * u), androidx.compose.ui.geometry.Size(16 * u, 14 * u), androidx.compose.ui.geometry.CornerRadius(3 * u)); drawCircle(Color(0xFF3E2723), 5 * u, Offset(w * 0.2f, floorY - 7 * u)) }
+        com.realcak3d.scanimal.core.Species.DOG -> { drawOval(Color(0xFFB71C1C), Offset(w * 0.13f, floorY - 5 * u), androidx.compose.ui.geometry.Size(16 * u, 5 * u)) ; drawCircle(Color(0xFFD32F2F), 3.5f * u, Offset(w * 0.21f, floorY - 8 * u)) }
+        else -> {}
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawToy(toy: String, x: Float, floorY: Float) {
+    val u = size.width / 100f
+    val c = when (toy) { "ball" -> Color(0xFFEF5350); "bone" -> Color(0xFFECEFF1); "mouse" -> Color(0xFF9E9E9E); "yarn" -> Color(0xFFBA68C8); "stick" -> Color(0xFF8D6E63); "disc" -> Color(0xFF42A5F5); else -> Color(0xFF80DEEA) }
+    drawOval(Color.Black.copy(alpha = 0.25f), Offset(x - 5 * u, floorY - 1.5f * u), androidx.compose.ui.geometry.Size(10 * u, 3 * u))
+    when (toy) {
+        "disc" -> drawOval(c, Offset(x - 6 * u, floorY - 4 * u), androidx.compose.ui.geometry.Size(12 * u, 4 * u))
+        "stick" -> drawLine(c, Offset(x - 7 * u, floorY - 3 * u), Offset(x + 7 * u, floorY - 5 * u), 2.5f * u, androidx.compose.ui.graphics.StrokeCap.Round)
+        "bone" -> { drawLine(c, Offset(x - 5 * u, floorY - 4 * u), Offset(x + 5 * u, floorY - 4 * u), 3 * u, androidx.compose.ui.graphics.StrokeCap.Round); drawCircle(c, 2 * u, Offset(x - 5 * u, floorY - 5 * u)); drawCircle(c, 2 * u, Offset(x + 5 * u, floorY - 5 * u)) }
+        "cube" -> drawRoundRect(c, Offset(x - 4 * u, floorY - 8 * u), androidx.compose.ui.geometry.Size(8 * u, 8 * u), androidx.compose.ui.geometry.CornerRadius(1.5f * u))
+        else -> { drawCircle(c, 5 * u, Offset(x, floorY - 5 * u)); drawCircle(Color.White.copy(alpha = 0.5f), 1.6f * u, Offset(x - 1.6f * u, floorY - 6.6f * u)) }
     }
 }
 
@@ -301,6 +386,14 @@ private fun ActionRow(repo: GameRepository, hub: SensorHub, g: GameData, go: (Sc
             if (walking) com.realcak3d.scanimal.sensors.DistanceTracker.stopWalk(repo) else com.realcak3d.scanimal.sensors.DistanceTracker.startWalk(repo)
         })
         add(Act("🎮", "Play") { go(Screen.GAMES) })
+        if (g.toy != null) {
+            add(Act(repo.engine.toyNames[g.toy] ?: "🧸", "Pick up") { repo.act { n -> removeToy(n) } })
+        } else {
+            add(Act("🧸", "Toss toy") {
+                val type = repo.engine.toyNames.keys.random()
+                repo.act { n -> placeToy(type, 0.2f + kotlin.random.Random.nextFloat() * 0.6f, n) }
+            })
+        }
         add(Act("🧽", if (b.poops > 0) "Clean ${b.poops}💩" else "Bathe") { repo.act { n -> clean(n) } })
         add(Act(if (b.asleep) "☀️" else "🌙", if (b.asleep) "Wake" else "Sleep") { repo.act { n -> toggleSleep(n, darkRoom) } })
         if (b.sick) add(Act("💊", "Medicine") { repo.act { n -> medicine(n) } })

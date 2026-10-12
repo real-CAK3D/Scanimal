@@ -113,6 +113,7 @@ class GameRepository private constructor(context: Context) {
         data.quests.clear(); data.quests.addAll(src.quests)
         data.questDay = src.questDay; data.weather = src.weather; data.biome = src.biome; data.motion = src.motion
         data.bootAt = src.bootAt; data.pressureBaseline = src.pressureBaseline
+        data.toy = src.toy; data.toyX = src.toyX
     }
 
     fun resetEverything() {
