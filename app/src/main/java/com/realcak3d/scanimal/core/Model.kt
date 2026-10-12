@@ -227,6 +227,7 @@ data class Settings(
     var surveillanceAlerts: Boolean = true,
     var accentHue: Int = -1,       // -1 = use theme default; else 0..359 custom accent
     var bigText: Boolean = false,
+    var spriteArt: Boolean = true,
 )
 
 /** A signal seen by the radar (Wi-Fi network or Bluetooth device). */

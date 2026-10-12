@@ -72,6 +72,7 @@ object Pal {
     /** -1 = use the theme's own accent; 0..359 = a custom accent hue applied app-wide. */
     var accent by mutableStateOf(-1)
     var bigText by mutableStateOf(false)
+    var spritesOn by mutableStateOf(false)
     private fun acc(fallback: Color, v: Float = 0.9f) = if (accent in 0..359) hsv(accent.toFloat(), 0.72f, v) else fallback
     val bg get() = theme.bg
     val panel get() = theme.panel

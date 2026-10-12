@@ -16,6 +16,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -25,6 +26,9 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import com.realcak3d.scanimal.core.Anim
 import com.realcak3d.scanimal.core.Pattern
 import com.realcak3d.scanimal.core.Sex
@@ -83,6 +87,9 @@ fun BuddyView(
     val tap by rememberUpdatedState(onTap)
     val blink = remember { BlinkClock() }
     val textPaint = remember { Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.DEFAULT_BOLD; textAlign = Paint.Align.CENTER } }
+    val ctx = LocalContext.current
+    val sprite: ImageBitmap? = if (Pal.spritesOn && look.stage != Stage.EGG)
+        remember(look.species, look.stage) { SpriteStore.image(ctx, look.species, look.stage) } else null
 
     Canvas(
         modifier.pointerInput(Unit) { detectTapGestures { tap(it) } }
@@ -95,7 +102,7 @@ fun BuddyView(
         if (look.stage == Stage.EGG) {
             drawEgg(look, t, maxOf(eggCracks, (look.eggProgress * 6).toInt()), active, p)
         } else {
-            drawBuddy(look, t, active, p, lookAt, blink.closedAmount(now), antennaGlow, textPaint)
+            drawBuddy(look, t, active, p, lookAt, blink.closedAmount(now), antennaGlow, textPaint, sprite)
         }
     }
 }
@@ -151,7 +158,7 @@ private fun DrawScope.drawEgg(look: BuddyLook, t: Float, cracks: Int, anim: Anim
 }
 
 private fun DrawScope.drawBuddy(
-    look: BuddyLook, t: Float, anim: Anim, p: Float, lookAt: Offset, blink: Float, antennaGlow: Float, textPaint: Paint,
+    look: BuddyLook, t: Float, anim: Anim, p: Float, lookAt: Offset, blink: Float, antennaGlow: Float, textPaint: Paint, sprite: ImageBitmap? = null,
 ) {
     val u = min(size.width, size.height) / 100f
     val s = look.stage.scale
@@ -207,6 +214,13 @@ private fun DrawScope.drawBuddy(
     }
 
     rotate(tilt, Offset(cx, ground)) {
+        if (sprite != null) {
+            val iw = sprite.width.toFloat(); val ih = sprite.height.toFloat()
+            val w = bw * 2.4f; val h = w * (ih / iw)
+            val l = cx - w / 2; val topY = (cy + bh * 0.52f) - h
+            drawImage(sprite, dstOffset = IntOffset(l.toInt(), topY.toInt()), dstSize = IntSize(w.toInt().coerceAtLeast(1), h.toInt().coerceAtLeast(1)),
+                alpha = if (look.dead) 0.5f else 1f)
+        } else {
         // Feet
         val step = if (anim == Anim.DANCE) sin(t * 9f) * 3 * u else 0f
         val spec = SpecCtx(cx, cy, bw, bh, u, s, t, base, light, dark, hue, anim, p, look)
@@ -414,6 +428,7 @@ private fun DrawScope.drawBuddy(
 
         // Accessory
         drawAccessory(look.accessory, cx, cy - bh / 2, bw, u * s, t, eyeY, eyeDX, eyeR)
+        }
     }
 
     // Overlays

@@ -48,6 +48,8 @@ class MainActivity : ComponentActivity() {
             if (Pal.theme !== theme) Pal.theme = theme
             if (Pal.accent != game.settings.accentHue) Pal.accent = game.settings.accentHue
             if (Pal.bigText != game.settings.bigText) Pal.bigText = game.settings.bigText
+            val sprites = game.settings.spriteArt && com.realcak3d.scanimal.ui.SpriteStore.anyInstalled(this)
+            if (Pal.spritesOn != sprites) Pal.spritesOn = sprites
             ScanimalTheme {
                 ScanimalRoot(repo = repo, hub = hub, hasNfc = nfc != null)
             }

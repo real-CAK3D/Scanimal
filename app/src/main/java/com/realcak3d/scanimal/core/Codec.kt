@@ -59,7 +59,7 @@ object Codec {
             put("online", g.settings.onlineProductLookup); put("autoSleep", g.settings.autoSleepAtNight)
             put("background", g.settings.backgroundMode); put("discoverable", g.settings.discoverable); put("autoUpdate", g.settings.autoUpdate)
             put("metric", g.settings.metric); put("theme", g.settings.theme); put("physics", g.settings.physics)
-            put("showVisitors", g.settings.showVisitors); put("chatter", g.settings.ambientChatter); put("mapTrail", g.settings.mapTrail); put("surv", g.settings.surveillanceAlerts); put("accentHue", g.settings.accentHue); put("bigText", g.settings.bigText)
+            put("showVisitors", g.settings.showVisitors); put("chatter", g.settings.ambientChatter); put("mapTrail", g.settings.mapTrail); put("surv", g.settings.surveillanceAlerts); put("accentHue", g.settings.accentHue); put("bigText", g.settings.bigText); put("spriteArt", g.settings.spriteArt)
         })
         o.put("lastFoodName", g.lastFoodName)
         o.put("favoriteFood", g.favoriteFood)
@@ -145,7 +145,7 @@ object Codec {
                 it.optBoolean("online", true), it.optBoolean("autoSleep", true), it.optBoolean("background", false),
                 it.optBoolean("discoverable", true), it.optBoolean("autoUpdate", true), it.optBoolean("metric", true),
                 it.optString("theme", "radar"), it.optBoolean("physics", true), it.optBoolean("showVisitors", true),
-                it.optBoolean("chatter", true), it.optBoolean("mapTrail", true), it.optBoolean("surv", true), it.optInt("accentHue", -1), it.optBoolean("bigText", false))
+                it.optBoolean("chatter", true), it.optBoolean("mapTrail", true), it.optBoolean("surv", true), it.optInt("accentHue", -1), it.optBoolean("bigText", false), it.optBoolean("spriteArt", true))
         }
         g.lastFoodName = o.optString("lastFoodName")
         g.favoriteFood = o.optString("favoriteFood")

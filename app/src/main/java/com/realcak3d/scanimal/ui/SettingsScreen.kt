@@ -144,6 +144,7 @@ fun SettingsScreen(repo: GameRepository, hub: SensorHub, requestPermissions: () 
                 listOf(160, 190, 210, 265, 320, 345, 20, 45, 90, 120).forEach { swatch(it, "") }
             }
             Toggle("Big text", "Larger, chunkier UI text", s.bigText) { v -> set { bigText = v } }
+            Toggle("Sprite art", if (SpriteStore.anyInstalled(ctx)) "Use the bundled semi-realistic sprites" else "No sprite pack installed — using built-in vector art", s.spriteArt) { v -> set { spriteArt = v } }
             Toggle("Physics", "Shake and tilt the phone to bounce your buddy around", s.physics) { v -> set { physics = v } }
             Toggle("Show visiting friends", "Up to 5 friend buddies hang out on your home screen", s.showVisitors) { v -> set { showVisitors = v } }
             Toggle("Ambient chatter", "Your buddy talks on its own every so often", s.ambientChatter) { v -> set { ambientChatter = v } }
