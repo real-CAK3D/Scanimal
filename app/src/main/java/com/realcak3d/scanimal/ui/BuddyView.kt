@@ -92,6 +92,8 @@ fun BuddyView(
     val ctx = LocalContext.current
     val sprite: ImageBitmap? = if (Pal.spritesOn && look.stage != Stage.EGG)
         remember(look.species, look.stage, variant) { SpriteStore.image(ctx, look.species, look.stage, variant) } else null
+    val bubbleImg: ImageBitmap? = if (Pal.spritesOn && underwater)
+        remember { SpriteStore.fx(ctx, "fx_bubble") } else null
 
     Canvas(
         modifier.pointerInput(Unit) { detectTapGestures { tap(it) } }
@@ -104,7 +106,7 @@ fun BuddyView(
         if (look.stage == Stage.EGG) {
             drawEgg(look, t, maxOf(eggCracks, (look.eggProgress * 6).toInt()), active, p)
         } else {
-            drawBuddy(look, t, active, p, lookAt, blink.closedAmount(now), antennaGlow, textPaint, sprite, underwater)
+            drawBuddy(look, t, active, p, lookAt, blink.closedAmount(now), antennaGlow, textPaint, sprite, underwater, bubbleImg)
         }
     }
 }
@@ -160,7 +162,7 @@ private fun DrawScope.drawEgg(look: BuddyLook, t: Float, cracks: Int, anim: Anim
 }
 
 private fun DrawScope.drawBuddy(
-    look: BuddyLook, t: Float, anim: Anim, p: Float, lookAt: Offset, blink: Float, antennaGlow: Float, textPaint: Paint, sprite: ImageBitmap? = null, underwater: Boolean = false,
+    look: BuddyLook, t: Float, anim: Anim, p: Float, lookAt: Offset, blink: Float, antennaGlow: Float, textPaint: Paint, sprite: ImageBitmap? = null, underwater: Boolean = false, bubble: ImageBitmap? = null,
 ) {
     val u = min(size.width, size.height) / 100f
     val s = look.stage.scale
@@ -448,9 +450,15 @@ private fun DrawScope.drawBuddy(
             val ph = ((t * 0.35f + k * 0.37f) % 1f)
             val by = src.y - ph * bh * 2.3f
             val bx = src.x + sin(ph * 6f + k) * 3f * u
-            val br = (0.8f + (k % 3) * 0.5f) * u * (1f - ph * 0.3f)
-            drawCircle(Color.White.copy(alpha = (1f - ph) * 0.5f), br, Offset(bx, by))
-            drawCircle(Color.White.copy(alpha = (1f - ph) * 0.35f), br * 0.4f, Offset(bx - br * 0.3f, by - br * 0.35f))
+            val br = (1.2f + (k % 3) * 0.8f) * u * (1f - ph * 0.3f)
+            if (bubble != null) {
+                val d = (br * 2.2f).toInt().coerceAtLeast(1)
+                drawImage(bubble, dstOffset = IntOffset((bx - d / 2f).toInt(), (by - d / 2f).toInt()),
+                    dstSize = IntSize(d, d), alpha = (1f - ph) * 0.9f)
+            } else {
+                drawCircle(Color.White.copy(alpha = (1f - ph) * 0.5f), br, Offset(bx, by))
+                drawCircle(Color.White.copy(alpha = (1f - ph) * 0.35f), br * 0.4f, Offset(bx - br * 0.3f, by - br * 0.35f))
+            }
         }
     }
     if (look.asleep) {

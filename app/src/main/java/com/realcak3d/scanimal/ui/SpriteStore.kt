@@ -47,6 +47,15 @@ object SpriteStore {
         return img
     }
 
+    /** A loose effect sprite from assets/sprites/<name>.webp (e.g. "fx_bubble", "fx_bubbles"). */
+    fun fx(ctx: Context, name: String): ImageBitmap? {
+        val key = "fx_$name"
+        if (cache.containsKey(key)) return cache[key]
+        val img = load(ctx, "sprites/$name.webp") ?: load(ctx, "sprites/$name.png")
+        cache[key] = img
+        return img
+    }
+
     /** A home-scene background for a species, from assets/backgrounds/<species>.webp. */
     fun background(ctx: Context, species: Species): ImageBitmap? {
         val sp = species.name.lowercase()
