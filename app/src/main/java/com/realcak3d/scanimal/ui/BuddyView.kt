@@ -28,6 +28,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import com.realcak3d.scanimal.core.Anim
 import com.realcak3d.scanimal.core.Pattern
 import com.realcak3d.scanimal.core.Sex
+import com.realcak3d.scanimal.core.Species
 import com.realcak3d.scanimal.core.Stage
 import kotlin.math.PI
 import kotlin.math.abs
@@ -51,6 +52,9 @@ data class BuddyLook(
     val tantrum: Boolean = false,
     val seed: Long = 0L,
     val dead: Boolean = false,
+    val species: Species = Species.BLOB,
+    val outfit: String? = null,
+    val eggProgress: Float = 0f,
 )
 
 private const val ANIM_MS = 1800L
@@ -89,7 +93,7 @@ fun BuddyView(
         val active = if (since in 0..ANIM_MS) anim else Anim.NONE
         val p = (since.toFloat() / ANIM_MS).coerceIn(0f, 1f)
         if (look.stage == Stage.EGG) {
-            drawEgg(look, t, eggCracks, active, p)
+            drawEgg(look, t, maxOf(eggCracks, (look.eggProgress * 6).toInt()), active, p)
         } else {
             drawBuddy(look, t, active, p, lookAt, blink.closedAmount(now), antennaGlow, textPaint)
         }
@@ -110,7 +114,7 @@ private class BlinkClock {
 private fun DrawScope.drawEgg(look: BuddyLook, t: Float, cracks: Int, anim: Anim, p: Float) {
     val u = min(size.width, size.height) / 100f
     val cx = size.width / 2; val cy = size.height * 0.56f
-    val wobble = (if ((t % 4f) < 0.6f) sin(t * 30f) * 7f else 0f) + (if (anim != Anim.NONE) sin(p * 40f) * 10f * (1 - p) else 0f)
+    val wobble = (if ((t % (4f - look.eggProgress * 3f)) < 0.6f) sin(t * 30f) * (7f + look.eggProgress * 8f) else 0f) + (if (anim != Anim.NONE) sin(p * 40f) * 10f * (1 - p) else 0f)
     drawOval(Color.Black.copy(alpha = 0.25f), Offset(cx - 22 * u, cy + 26 * u), Size(44 * u, 8 * u))
     rotate(wobble, Offset(cx, cy + 28 * u)) {
         val w = 44 * u; val h = 56 * u
@@ -140,6 +144,10 @@ private fun DrawScope.drawEgg(look: BuddyLook, t: Float, cracks: Int, anim: Anim
         }
         drawPath(egg, Color(0xFF8C7650), style = Stroke(1.2f * u))
     }
+    if (look.eggProgress > 0f) {
+        val glow = 0.15f + 0.25f * look.eggProgress * (0.6f + 0.4f * sin(t * 3f))
+        drawCircle(Brush.radialGradient(listOf(Pal.amber.copy(alpha = glow), Color.Transparent), Offset(cx, cy), 45 * u), 45 * u, Offset(cx, cy))
+    }
 }
 
 private fun DrawScope.drawBuddy(
@@ -148,12 +156,18 @@ private fun DrawScope.drawBuddy(
     val u = min(size.width, size.height) / 100f
     val s = look.stage.scale
     val fat = (0.88f + ((look.weight - 8.0) / 40.0).toFloat().coerceIn(0f, 0.4f))
-    val hue = if (look.hue < 0) (t * 25f) % 360f else look.hue
+    val hue = when {
+        look.hue < 0 -> (t * 25f) % 360f
+        look.species == Species.CHAMELEON -> look.hue + sin(t * 0.25f) * 70f
+        else -> look.hue
+    }
+    val sp = look.species
     val elder = look.stage == Stage.ELDER
     val sat = if (elder) 0.38f else if (look.dead) 0.05f else 0.62f
-    val base = hsv(hue, sat, 0.88f)
-    val light = hsv(hue, sat * 0.45f, 1f)
-    val dark = hsv(hue, sat * 1.1f, 0.55f)
+    val skin = if (sp == Species.HUMAN) skinTone(look.seed) else null
+    val base = skin ?: if (sp == Species.ROBOT) hsv(hue, 0.18f, 0.78f) else hsv(hue, sat, 0.88f)
+    val light = skin?.let { lerpColor(it, Color.White, 0.35f) } ?: if (sp == Species.ROBOT) hsv(hue, 0.08f, 0.97f) else hsv(hue, sat * 0.45f, 1f)
+    val dark = skin?.let { lerpColor(it, Color.Black, 0.35f) } ?: if (sp == Species.ROBOT) hsv(hue, 0.25f, 0.45f) else hsv(hue, sat * 1.1f, 0.55f)
 
     // Motion: idle bob, plus reaction-specific moves.
     val breathe = sin(t * 2.2f) * 0.025f
@@ -192,13 +206,29 @@ private fun DrawScope.drawBuddy(
     rotate(tilt, Offset(cx, ground)) {
         // Feet
         val step = if (anim == Anim.DANCE) sin(t * 9f) * 3 * u else 0f
-        drawOval(dark, Offset(cx - bw * 0.36f, cy + bh * 0.38f - step), Size(bw * 0.26f, bh * 0.16f))
-        drawOval(dark, Offset(cx + bw * 0.10f, cy + bh * 0.38f + step), Size(bw * 0.26f, bh * 0.16f))
+        val spec = SpecCtx(cx, cy, bw, bh, u, s, t, base, light, dark, hue, anim, p, look)
+        drawSpeciesBack(spec)
+        drawOutfitBack(spec)
+        when (sp) {
+            Species.FISH, Species.PLANT -> {}
+            Species.BIRD -> for (side in listOf(-1, 1)) {
+                val fx = cx + side * bw * 0.15f
+                drawLine(Color(0xFFFFA726), Offset(fx, cy + bh * 0.42f), Offset(fx, cy + bh * 0.56f), 1.4f * u * s, StrokeCap.Round)
+                drawLine(Color(0xFFFFA726), Offset(fx, cy + bh * 0.56f), Offset(fx + side * 3 * u * s, cy + bh * 0.58f), 1.2f * u * s, StrokeCap.Round)
+            }
+            else -> {
+                val feet = if (sp == Species.HUMAN) Color(0xFF3E2723) else dark
+                drawOval(feet, Offset(cx - bw * 0.36f, cy + bh * 0.38f - step), Size(bw * 0.26f, bh * 0.16f))
+                drawOval(feet, Offset(cx + bw * 0.10f, cy + bh * 0.38f + step), Size(bw * 0.26f, bh * 0.16f))
+            }
+        }
 
         // Antenna (behind the head top)
         val sway = sin(t * 1.7f) * 6f + if (anim == Anim.SHOCK) sin(p * 40f) * 20f * (1 - p) else 0f
-        val ax = cx; val ay = cy - bh * 0.46f
-        val tip = Offset(ax + sin(sway * PI.toFloat() / 180f) * 16 * u * s + 4 * u * s, ay - 15 * u * s)
+        val antennaX = when (sp) { Species.BLOB, Species.ROBOT -> listOf(0f); Species.ALIEN -> listOf(-0.18f, 0.18f); else -> emptyList() }
+        for (ox in antennaX) {
+        val ax = cx + ox * bw; val ay = cy - bh * 0.46f
+        val tip = Offset(ax + sin(sway * PI.toFloat() / 180f) * 16 * u * s + (if (ox < 0) -4f else 4f) * u * s, ay - 15 * u * s)
         val stalk = Path().apply { moveTo(ax, ay); quadraticTo(ax - 3 * u * s, ay - 9 * u * s, tip.x, tip.y) }
         drawPath(stalk, dark, style = Stroke(2.2f * u * s, cap = StrokeCap.Round))
         val pulse = 0.5f + 0.5f * sin(t * (3f + antennaGlow * 9f))
@@ -206,6 +236,7 @@ private fun DrawScope.drawBuddy(
         drawCircle(Brush.radialGradient(listOf(glowC.copy(alpha = 0.55f * (0.4f + antennaGlow) * pulse), Color.Transparent), tip, 9 * u * s), 9 * u * s, tip)
         drawCircle(glowC, 3.2f * u * s, tip)
         drawCircle(Color.White.copy(alpha = 0.8f), 1.1f * u * s, tip + Offset(-0.9f * u * s, -0.9f * u * s))
+        }
 
         // Arms
         val wave = when (anim) {
@@ -213,7 +244,20 @@ private fun DrawScope.drawBuddy(
             Anim.SAD -> 25f
             else -> sin(t * 2.2f) * 6f
         }
-        if (look.stage != Stage.BABY) {
+        if (sp == Species.BIRD) {
+            val flap = if (wave < -20f) sin(t * 18f) * 30f else sin(t * 2f) * 5f
+            for (side in listOf(-1, 1)) rotate(side * (20f + flap), Offset(cx + side * bw * 0.42f, cy)) {
+                drawOval(dark, Offset(cx + side * bw * 0.42f - bw * 0.12f, cy - bh * 0.05f), Size(bw * 0.24f, bh * 0.34f))
+            }
+        } else if (sp == Species.FISH) {
+            for (side in listOf(-1, 1)) rotate(side * (30f + sin(t * 5f) * 15f), Offset(cx + side * bw * 0.4f, cy + bh * 0.1f)) {
+                drawOval(dark.copy(alpha = 0.85f), Offset(cx + side * bw * 0.45f - bw * 0.09f, cy + bh * 0.05f), Size(bw * 0.18f, bh * 0.1f))
+            }
+        } else if (sp == Species.PLANT) {
+            for (side in listOf(-1, 1)) rotate(side * (-30f + wave * 0.4f), Offset(cx + side * bw * 0.42f, cy + bh * 0.05f)) {
+                drawLeaf(Offset(cx + side * bw * 0.42f, cy + bh * 0.05f), side * bw * 0.28f, Color(0xFF66BB6A))
+            }
+        } else if (look.stage != Stage.BABY) {
             rotate(-wave, Offset(cx - bw * 0.46f, cy + bh * 0.05f)) {
                 drawOval(base, Offset(cx - bw * 0.62f, cy - bh * 0.02f), Size(bw * 0.22f, bh * 0.14f))
             }
@@ -223,7 +267,11 @@ private fun DrawScope.drawBuddy(
         }
 
         // Body
-        val body = Path().apply {
+        val body = if (sp == Species.ROBOT) Path().apply {
+            addRoundRect(androidx.compose.ui.geometry.RoundRect(cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2, androidx.compose.ui.geometry.CornerRadius(bw * 0.18f)))
+        } else if (sp == Species.FISH) Path().apply {
+            addOval(androidx.compose.ui.geometry.Rect(cx - bw * 0.56f, cy - bh * 0.42f, cx + bw * 0.56f, cy + bh * 0.46f))
+        } else Path().apply {
             moveTo(cx, cy - bh / 2)
             cubicTo(cx + bw * 0.40f, cy - bh / 2, cx + bw / 2, cy - bh * 0.12f, cx + bw / 2, cy + bh * 0.14f)
             cubicTo(cx + bw / 2, cy + bh * 0.42f, cx + bw * 0.30f, cy + bh / 2, cx, cy + bh / 2)
@@ -257,6 +305,7 @@ private fun DrawScope.drawBuddy(
                 drawCircle(Color(0xFF6D4C41).copy(alpha = 0.35f), 1.6f * u * s, Offset(cx + (r.nextFloat() - 0.5f) * bw * 0.8f, cy + (r.nextFloat() - 0.2f) * bh * 0.5f))
             }
         }
+        clipPath(body) { drawOutfitFront(spec) }
         drawPath(body, dark.copy(alpha = 0.6f), style = Stroke(0.8f * u))
 
         // Face
@@ -327,7 +376,7 @@ private fun DrawScope.drawBuddy(
         // Mouth
         val my = cy + bh * 0.13f
         val mw = bw * 0.16f
-        when {
+        if (sp != Species.BIRD) when {
             look.dead -> drawLine(ink, Offset(cx - mw / 2, my), Offset(cx + mw / 2, my), 1.4f * u, StrokeCap.Round)
             look.asleep -> drawCircle(ink, 1.3f * u, Offset(cx, my))
             anim == Anim.EAT -> {
@@ -352,6 +401,8 @@ private fun DrawScope.drawBuddy(
             }
             else -> drawArc(ink, 20f, 140f, false, Offset(cx - mw / 2, my - mw * 0.45f), Size(mw, mw * 0.7f), style = Stroke(1.4f * u, cap = StrokeCap.Round))
         }
+
+        drawSpeciesFront(spec, eyeY, eyeDX, eyeR, my)
 
         // Accessory
         drawAccessory(look.accessory, cx, cy - bh / 2, bw, u * s, t, eyeY, eyeDX, eyeR)
@@ -411,7 +462,7 @@ private fun DrawScope.drawBuddy(
 
 private fun eyeOffset(bw: Float) = bw * 0.19f
 
-private fun DrawScope.drawStar(c: Offset, r: Float, color: Color) {
+fun DrawScope.drawStar(c: Offset, r: Float, color: Color) {
     val path = Path()
     for (i in 0 until 10) {
         val rad = if (i % 2 == 0) r else r * 0.45f

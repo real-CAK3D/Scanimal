@@ -1,6 +1,6 @@
 package com.realcak3d.scanimal.core
 
-enum class AchCategory(val label: String) { SCAN("Scanning"), SIGNALS("Signals"), SKY("Sky"), CARE("Care"), LIFE("Life"), PLAY("Play"), SENSORS("Sensors") }
+enum class AchCategory(val label: String) { SCAN("Scanning"), SIGNALS("Signals"), DEVICES("Devices"), SKY("Sky"), WALKS("Walks"), FRIENDS("Friends"), CARE("Care"), LIFE("Life"), PLAY("Play"), SENSORS("Sensors") }
 
 class Achievement(
     val id: String,
@@ -89,6 +89,32 @@ object Achievements {
         counter("shaker", "Shake It Up", "Shake your phone 25 times.", "🫨", AchCategory.SENSORS, C.SHAKES, 25, 15),
         counter("peekaboo", "Peekaboo!", "Play peekaboo with the proximity sensor.", "🙈", AchCategory.SENSORS, C.PEEKABOO, 1, 10),
         counter("magnet", "Magnetic Personality", "Find a strong magnet with the compass.", "🧲", AchCategory.SENSORS, C.MAGNETS, 1, 20, secret = true),
+        counter("bumper", "Bumper Cars", "Bounce your buddy off the walls 50 times.", "🎳", AchCategory.SENSORS, C.BUMPS, 50, 25),
+        // Walks
+        counter("first_walk", "Walkies!", "Take your buddy on a walk.", "🦮", AchCategory.WALKS, C.WALKS, 1, 10),
+        counter("dist_1k", "Around the Block", "Travel 1 km together.", "🚶", AchCategory.WALKS, C.DISTANCE_M, 1_000, 20),
+        counter("dist_5k", "5K Fun Run", "Travel 5 km together.", "🏃", AchCategory.WALKS, C.DISTANCE_M, 5_000, 50),
+        counter("dist_42k", "Marathon Buddy", "Travel 42.2 km together.", "🏅", AchCategory.WALKS, C.DISTANCE_M, 42_195, 200),
+        counter("dist_100k", "Explorer", "Travel 100 km together.", "🧭", AchCategory.WALKS, C.DISTANCE_M, 100_000, 300),
+        counter("dist_1000k", "World Traveler", "Travel 1,000 km together.", "🌎", AchCategory.WALKS, C.DISTANCE_M, 1_000_000, 1000),
+        // Devices
+        counter("types_5", "Gadget Spotter", "Find 5 kinds of devices.", "🔍", AchCategory.DEVICES, C.DEVICE_TYPES, 5, 25),
+        counter("types_12", "Gadget Guru", "Find 12 kinds of devices.", "🧰", AchCategory.DEVICES, C.DEVICE_TYPES, 12, 75),
+        counter("types_20", "Gadget Encyclopedia", "Find 20 kinds of devices.", "📖", AchCategory.DEVICES, C.DEVICE_TYPES, 20, 200),
+        counter("connect_1", "Plugged In", "Connect to a device or network while your buddy watches.", "🔗", AchCategory.DEVICES, C.CONNECTIONS, 1, 15),
+        counter("connect_25", "Well Connected", "Get 25 connection bonuses.", "🕸️", AchCategory.DEVICES, C.CONNECTIONS, 25, 75),
+        counter("cells_1", "Tower Spotter", "Spot a cell tower.", "🗼", AchCategory.DEVICES, C.CELLS, 1, 15),
+        counter("cells_25", "Tower Collector", "Spot 25 different cell towers.", "📡", AchCategory.DEVICES, C.CELLS, 25, 60),
+        Achievement("devices_100", "Signal Hoarder", "Log 100 devices in your catalog.", "🗃️", AchCategory.DEVICES, 60, target = 100) { it.devices.size.toLong() },
+        Achievement("devices_1000", "Signal Archivist", "Log 1,000 devices in your catalog.", "🏛️", AchCategory.DEVICES, 300, target = 1000) { it.devices.size.toLong() },
+        // Friends
+        counter("friend_1", "Pen Pals", "Add a friend's buddy.", "🤝", AchCategory.FRIENDS, C.FRIENDS, 1, 20),
+        counter("friend_5", "Full House", "Have 5 buddy friends.", "🏠", AchCategory.FRIENDS, C.FRIENDS, 5, 60),
+        counter("nearby_1", "Buddy Meetup", "Meet another Scanimal in person.", "📍", AchCategory.FRIENDS, C.NEARBY_MEETS, 1, 40),
+        counter("nearby_10", "Regulars", "Meet nearby Scanimals 10 times.", "🎪", AchCategory.FRIENDS, C.NEARBY_MEETS, 10, 100),
+        counter("messages_10", "Chatty Cathy", "Send 10 messages to friends.", "✉️", AchCategory.FRIENDS, C.MESSAGES, 10, 30),
+        counter("playdates_10", "Playdate Pro", "Have 10 playdates.", "🧸", AchCategory.FRIENDS, C.PLAYDATES, 10, 40),
+        counter("warm_egg", "Incubator", "Warm an egg 20 times.", "🔥", AchCategory.LIFE, C.HATCH_WARMS, 20, 15, secret = true),
     )
 
     val byId = all.associateBy { it.id }

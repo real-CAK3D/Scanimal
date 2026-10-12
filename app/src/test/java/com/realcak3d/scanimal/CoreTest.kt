@@ -212,3 +212,90 @@ class RadarTest {
         assertTrue(RadarTracker.distanceMeters(-59, SignalKind.BLE) in 0.9..1.1)
     }
 }
+
+class FeatureTest {
+    private val t0 = 1_760_000_000_000L
+    private fun hatched(): Engine {
+        val e = Engine(GameData(), Random(5)); e.newEgg(t0)
+        e.layEgg("Rex", Sex.MALE, Species.DINO, t0)
+        return e
+    }
+
+    @Test fun timedHatching() {
+        val e = Engine(GameData(), Random(5)); e.newEgg(t0)
+        e.layEgg("Rex", Sex.MALE, Species.DINO, t0)
+        assertFalse(e.g.buddy.hatched)
+        assertEquals(15, e.eggMinutesLeft(t0))
+        e.warmEgg(t0 + 1000, 5 * 60_000L)
+        assertFalse(e.g.buddy.hatched)
+        assertTrue(e.eggMinutesLeft(t0 + 1000) in 9..10)
+        val ev = e.tick(t0 + 16 * 60_000L)
+        assertTrue(e.g.buddy.hatched, "auto-hatches when time is up")
+        assertEquals(Species.DINO, e.g.buddy.species)
+        assertTrue(ev.isNotEmpty())
+        assertTrue(e.g.myId.length == 8)
+    }
+
+    @Test fun walkingAndDistance() {
+        val e = hatched(); e.tick(t0 + 20 * 60_000L)
+        val now = t0 + 21 * 60_000L
+        e.startWalk(now)
+        repeat(60) { e.onDistance(25.0, now + it * 1000L) }
+        assertEquals(1500L, e.g.count(C.DISTANCE_M))
+        assertTrue("dist_1k" in e.g.achievements)
+        assertTrue("first_walk" in e.g.achievements)
+        assertTrue(e.onDistance(5000.0, now).isEmpty(), "GPS jumps ignored")
+        e.g.settings.metric = false
+        assertTrue(e.fmtDist(1500).endsWith("ft"))
+    }
+
+    @Test fun deviceCatalogAndConnections() {
+        val e = hatched(); val now = t0 + 20 * 60_000L; e.tick(now)
+        assertEquals(DeviceType.EARBUDS, DeviceClassifier.classify(SignalInfo("a", "Skullcandy Indy Evo", -60, SignalKind.BLE)))
+        assertEquals(DeviceType.WATCH, DeviceClassifier.classify(SignalInfo("b", "Galaxy Watch5 (A1B2)", -60, SignalKind.BLE)))
+        assertEquals(DeviceType.HEADPHONES, DeviceClassifier.classify(SignalInfo("c", "", -60, SignalKind.BLUETOOTH, classHint = 0x0400)))
+        assertEquals(DeviceType.HOTSPOT, DeviceClassifier.classify(SignalInfo("d", "Andy's iPhone", -60, SignalKind.WIFI)))
+        e.onBluetooth(listOf(SignalInfo("a", "Skullcandy Indy Evo", -60, SignalKind.BLE), SignalInfo("b", "Galaxy Watch5", -70, SignalKind.BLE)), now)
+        assertEquals(2, e.g.devices.size)
+        val ev = e.onBluetooth(listOf(SignalInfo("a", "Skullcandy Indy Evo", -50, SignalKind.BLE, connected = true)), now + 60_000)
+        val rec = e.g.devices["BLE:a"]!!
+        assertEquals(1, rec.timesConnected)
+        assertTrue(ev.any { it is GameEvent.Say && (it as GameEvent.Say).text.contains("Connected") })
+        assertTrue("connect_1" in e.g.achievements)
+        e.onCells(listOf(SignalInfo("310-260-1234", "T-Mobile LTE", -95, SignalKind.CELL)), now)
+        assertEquals(1L, e.g.count(C.CELLS))
+    }
+
+    @Test fun friendsAndLinkCodes() {
+        val e = hatched(); val now = t0 + 20 * 60_000L; e.tick(now)
+        e.g.owner.name = "Andy"
+        val code = Codec.linkCode(e.myCard())
+        assertTrue(code.startsWith("SCANIMAL1:"))
+        val parsed = Codec.parseLink("hey add me $code thanks")!!
+        assertEquals("Rex", parsed.name); assertEquals(Species.DINO, parsed.species); assertEquals("Andy", parsed.owner)
+        assertTrue(e.addFriend(parsed, now, true).any { it is GameEvent.Say }, "own card is refused politely")
+        assertEquals(0, e.g.friends.size)
+        val other = Friend("ZZZZ1111", "Mochi", "Sam", Species.CAT, Sex.FEMALE, 30f, Pattern.SPOTS, 4, "bow", 0)
+        e.addFriend(other, now, true)
+        assertEquals(1, e.g.friends.size)
+        e.interact("ZZZZ1111", "play", now)
+        assertEquals(1L, e.g.count(C.PLAYDATES))
+        val pc = Codec.postcard("ZZZZ1111", "Mochi", e.g.myId, "hi Rex!", now)
+        val p = Codec.parsePostcard(pc)!!
+        e.addMessage(p.fromId, p.text, false, now)
+        assertEquals("hi Rex!", e.g.friends[0].messages[0].text)
+        e.onNearbyBuddy(Friend("NEAR0001", "Zap", "", Species.ALIEN, Sex.MYSTERY, 140f, Pattern.PLAIN, 2, null, 0), -55, now)
+        assertTrue("nearby_1" in e.g.achievements)
+        val back = Codec.decode(Codec.encode(e.g))
+        assertEquals(2, back.friends.size)
+        assertEquals(1, back.friends[0].messages.size)
+        assertEquals(e.g.devices.size, back.devices.size)
+        assertEquals(Codec.encode(e.g), Codec.encode(back))
+    }
+
+    @Test fun bumps() {
+        val e = hatched(); val now = t0 + 20 * 60_000L; e.tick(now)
+        assertTrue(e.onBump(1.2f, now).isNotEmpty())
+        assertTrue(e.onBump(1.2f, now + 100).isEmpty(), "rate limited")
+    }
+}

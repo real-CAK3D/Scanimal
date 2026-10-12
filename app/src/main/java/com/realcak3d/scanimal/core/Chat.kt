@@ -96,7 +96,7 @@ class ChatBrain(private val engine: Engine, private val rnd: Random = Random.Def
         // ---- memory: learn about the owner
         Regex("(?:my name is|call me|i am called|i'm called)\\s+([a-z][a-z' -]{0,20})").find(t)?.let {
             val name = it.groupValues[1].trim().split(" ").take(2).joinToString(" ") { w -> w.replaceFirstChar { c -> c.uppercase() } }
-            g.ownerName = name
+            g.ownerName = name; g.owner.name = name
             g.memory["owner_name"] = name
             return Reply(pick("Nice to meet you, $name! I'll remember that.", "$name! What a ${Phrases.adjectives.random(rnd)} name!", "Got it. You're $name. Saved to my heart drive."), anim = Anim.LOVE)
         }
@@ -136,6 +136,17 @@ class ChatBrain(private val engine: Engine, private val rnd: Random = Random.Def
         if (t.contains("what's my name") || t.contains("what is my name") || t.contains("who am i")) {
             return Reply(if (g.ownerName.isNotBlank()) "You're ${g.ownerName}! My favorite human." else "I don't know yet! Say \"my name is ...\"")
         }
+        val o = g.owner
+        if (w("birthday") && (t.contains("my") || t.contains("when"))) {
+            return Reply(if (o.birthday.isNotBlank()) "Your birthday is ${o.birthday.replace('-', '/')}! I'll throw a party. 🎂" else "You never told me! Settings → About you.")
+        }
+        if (w("hobby") || t.contains("what do i like to do")) return Reply(if (o.hobby.isNotBlank()) "You love ${o.hobby}! Can I come next time?" else "What's your hobby?")
+        if (t.contains("my pet") && o.pet.isNotBlank()) return Reply("${o.pet}! Tell ${o.pet} I said hi! ${Phrases.emotes.random(rnd)}")
+        if ((w("color") || w("colour")) && t.contains("favorite") && !t.contains("my favorite color is") && o.favoriteColor.isNotBlank() && g.memory["fav_color"] == null) {
+            return Reply("Your favorite color is ${o.favoriteColor}! Mine is ${listOf("radar green", "antenna amber", "Wi-Fi blue", "pixel pink").random(rnd)}.")
+        }
+        if (w("walk") || w("walkies")) return Reply("WALKIES?! Tap Walk on the home screen! We've gone ${engine.fmtDist(g.count(C.DISTANCE_M))} so far.", anim = Anim.HAPPY)
+        if (w("devices") || w("gadgets")) return Reply("I've logged ${g.devices.size} devices of ${g.devices.values.map { it.type }.toSet().size} kinds! Check the Devices list.")
 
         // ---- commands & activities
         if (t.startsWith("say ") || t.startsWith("repeat ")) {

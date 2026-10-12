@@ -48,13 +48,39 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
             pattern = Pattern.entries.random(sr),
             personality = Personality.entries.random(sr),
         )
+        if (g.myId.isBlank()) g.myId = (1..8).map { "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ"[rnd.nextInt(34)] }.joinToString("")
     }
+
+    /** Name, sex and species are chosen; the egg now incubates for [incubationMs] (warming speeds it up). */
+    fun layEgg(name: String, sex: Sex, species: Species, now: Long, incubationMs: Long = DEFAULT_INCUBATION): List<GameEvent> {
+        if (b.hatched) return emptyList()
+        b.name = name.trim().take(16).ifBlank { "Blip" }
+        b.sex = sex
+        b.species = species
+        val sr = Random(b.seed)
+        b.hue = (species.defaultHue + sr.nextInt(-25, 26) + 360f) % 360f
+        b.eggLaidAt = now
+        b.hatchReadyAt = now + incubationMs
+        g.log(now, "🥚", "${b.name}'s ${species.label.lowercase()} egg is incubating.")
+        return listOf(GameEvent.Say("*the egg wiggles at the sound of \"${b.name}\"*", Anim.SHOCK))
+    }
+
+    /** Taps, scans and body heat shave time off incubation. Returns hatch events if it's ready. */
+    fun warmEgg(now: Long, ms: Long): List<GameEvent> {
+        if (b.hatched || b.hatchReadyAt == 0L) return emptyList()
+        g.bump(C.HATCH_WARMS)
+        b.hatchReadyAt = max(now, b.hatchReadyAt - ms)
+        return if (now >= b.hatchReadyAt) hatch(b.name, b.sex, now) else emptyList()
+    }
+
+    fun eggMinutesLeft(now: Long): Int = if (b.hatchReadyAt == 0L) -1 else ((b.hatchReadyAt - now).coerceAtLeast(0) / 60_000L).toInt()
 
     fun hatch(name: String, sex: Sex, now: Long): List<GameEvent> {
         if (b.eggLaidAt == 0L) newEgg(now)
         b.name = name.trim().take(16).ifBlank { "Blip" }
         b.sex = sex
         b.bornAt = now
+        b.hatchReadyAt = min(b.hatchReadyAt, now)
         b.lastUpdate = now
         b.stats = Stats()
         if (g.created == 0L) g.created = now
@@ -66,6 +92,10 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
 
     /** Advance the simulation to [now]. Safe to call often; does nothing for tiny gaps. */
     fun tick(now: Long, offline: Boolean = false): List<GameEvent> {
+        if (!b.hatched && !b.dead && b.hatchReadyAt > 0 && now >= b.hatchReadyAt) {
+            b.lastUpdate = now
+            return hatch(b.name, b.sex, now)
+        }
         if (!b.hatched || b.dead) { b.lastUpdate = now; return emptyList() }
         val events = mutableListOf<GameEvent>()
         var last = b.lastUpdate.takeIf { it > 0 } ?: now
@@ -87,8 +117,20 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
             g.log(now, "🎂", "${b.name} turned $newAge!")
             grantCoins(10 * newAge, events)
         }
+        if (isOwnerBirthday(now) && onceEvery("owner_bday_" + Calendar.getInstance().apply { timeInMillis = now }.get(Calendar.YEAR), now, 1)) {
+            events += GameEvent.Say("🎉 HAPPY BIRTHDAY, ${g.owner.name.ifBlank { "friend" }}!!! I made you a cake out of pixels! 🎂", Anim.LOVE)
+            s.happiness += 20; s.clampAll()
+            grantCoins(50, events)
+        }
         events += checkAchievements(now)
         return events
+    }
+
+    fun isOwnerBirthday(now: Long): Boolean {
+        val bd = g.owner.birthday
+        if (bd.length != 5) return false
+        val c = Calendar.getInstance().apply { timeInMillis = now }
+        return bd == "%02d-%02d".format(c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH))
     }
 
     private fun step(h: Double, at: Long, events: MutableList<GameEvent>, protectOffline: Boolean) {
@@ -363,6 +405,10 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
 
     fun useItem(itemId: String, now: Long): List<GameEvent> {
         val item = Items.byId[itemId] ?: return emptyList()
+        if (item.kind == ItemKind.OUTFIT) {
+            b.outfit = if (b.outfit == itemId) null else itemId
+            return listOf(GameEvent.Say(if (b.outfit == null) "Outfit off!" else "Fashion show! ${Phrases.emotes.random(rnd)}", Anim.SPARKLE))
+        }
         if (item.kind == ItemKind.COSMETIC) {
             b.accessory = if (b.accessory == itemId) null else itemId
             return listOf(GameEvent.Say(if (b.accessory == null) "Back to my natural look!" else "How do I look? ${Phrases.emotes.random(rnd)}", Anim.SPARKLE))
@@ -442,6 +488,7 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
             if (onceEvery("wifi_none", now, 30 * 60_000L)) ev += say(Topic.WIFI_NONE, now)
             return ev
         }
+        ev += recordDevices(results, now)
         var fresh = 0
         for (r in results) {
             if (g.seenWifi.add(r.id)) {
@@ -473,6 +520,7 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
 
     fun onBluetooth(devices: List<SignalInfo>, now: Long): List<GameEvent> {
         val ev = mutableListOf<GameEvent>()
+        ev += recordDevices(devices, now)
         val freshNamed = mutableListOf<String>()
         var fresh = 0
         for (d in devices) {
@@ -625,6 +673,244 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
         return ev
     }
 
+
+    // ---------------------------------------------------------------- walks
+
+    /** Called with distance actually moved (GPS), e.g. while on a walk or in background mode. */
+    fun onDistance(meters: Double, now: Long): List<GameEvent> {
+        if (meters <= 0 || meters > 2_000) return emptyList() // ignore GPS jumps
+        val ev = mutableListOf<GameEvent>()
+        val before = g.count(C.DISTANCE_M)
+        g.bump(C.DISTANCE_M, meters.toLong().coerceAtLeast(1))
+        val after = g.count(C.DISTANCE_M)
+        if (b.hatched && !b.asleep) {
+            val k = meters / 100.0
+            val sporty = if (b.personality == Personality.SPORTY) 1.5 else 1.0
+            s.fitness += 0.9 * k * sporty; s.happiness += 0.8 * k * sporty; s.fullness -= 0.7 * k; s.energy -= 0.6 * k
+            b.weight = max(5.0, b.weight - 0.04 * k)
+            if (after / 250 > before / 250) {
+                ev += GameEvent.Say(listOf("We've walked ${fmtDist(after)} together!", "Ooh, new smells! ${fmtDist(after)} so far!",
+                    "Walkies! I can see so many signals out here!", "Left paw, right paw! ${fmtDist(after)}!").random(rnd), Anim.HAPPY)
+                ev += gainXp(4, now)
+            }
+            if (after / 1000 > before / 1000) {
+                grantCoins(10, ev)
+                g.log(now, "🥾", "Walked ${after / 1000} km in total!")
+            }
+        }
+        s.clampAll()
+        ev += checkAchievements(now)
+        return ev
+    }
+
+    fun startWalk(now: Long): List<GameEvent> {
+        g.bump(C.WALKS)
+        g.log(now, "🦮", "Started a walk with ${b.name}.")
+        return listOf(GameEvent.Say(listOf("WALKIES!!! Let's go!", "Leash on! Adventure time!", "Outside? OUTSIDE!").random(rnd), Anim.HAPPY)) + checkAchievements(now)
+    }
+
+    fun fmtDist(m: Long): String = if (g.settings.metric) (if (m < 1000) "$m m" else "%.2f km".format(m / 1000.0))
+        else (if (m < 1609) "${(m * 3.281).toLong()} ft" else "%.2f mi".format(m / 1609.34))
+
+    // ---------------------------------------------------------------- device catalog & connections
+
+    /** Records every signal; first sighting per device per day applies its type's effect. */
+    fun recordDevices(signals: List<SignalInfo>, now: Long): List<GameEvent> {
+        val ev = mutableListOf<GameEvent>()
+        val newTypes = mutableSetOf<DeviceType>()
+        var effects = 0
+        for (sig in signals) {
+            val key = "${sig.kind.name}:${sig.id}"
+            var r = g.devices[key]
+            val fresh = r == null
+            if (r == null) {
+                if (g.devices.size >= 3000) g.devices.entries.minByOrNull { it.value.lastSeen }?.let { g.devices.remove(it.key) }
+                r = DeviceRecord(sig.id, sig.name, sig.kind, DeviceClassifier.classify(sig), now, now, bestRssi = sig.rssi)
+                g.devices[key] = r
+                if (g.devices.values.count { it.type == r.type } == 1) newTypes += r.type
+            } else {
+                if (sig.name.isNotBlank() && sig.name != r.name) { r.name = sig.name; r.type = DeviceClassifier.classify(sig) }
+                if (now - r.lastSeen > 10 * 60_000L) r.timesSeen++
+                r.lastSeen = now
+                r.bestRssi = max(r.bestRssi, sig.rssi)
+            }
+            if (sig.connected) ev += onConnected(sig, now)
+            if (b.hatched && !b.asleep && (fresh || onceEvery("dev_$key", now, 20 * 3_600_000L)) && effects < 4) {
+                if (applyTypeEffect(r.type, 0.5)) effects++
+            }
+        }
+        g.counters[C.DEVICE_TYPES] = g.devices.values.map { it.type }.toSet().size.toLong()
+        if (newTypes.isNotEmpty() && b.hatched) {
+            val t = newTypes.first()
+            ev += GameEvent.Say("New kind of gadget: ${t.icon} ${t.label}! (${t.effect})", Anim.SPARKLE)
+            ev += gainXp(5 * newTypes.size, now)
+            g.log(now, t.icon, "Discovered a new device type: ${newTypes.joinToString { it.label }}.")
+        }
+        s.clampAll()
+        return ev
+    }
+
+    /** Small stat nudge for a device type; returns true if anything happened. */
+    private fun applyTypeEffect(t: DeviceType, m: Double): Boolean {
+        when (t) {
+            DeviceType.EARBUDS, DeviceType.HEADPHONES -> s.happiness += 2 * m
+            DeviceType.SPEAKER -> { s.happiness += 2 * m; s.fitness += 1 * m }
+            DeviceType.WATCH, DeviceType.FITNESS, DeviceType.MOUSE -> s.fitness += 2 * m
+            DeviceType.PHONE, DeviceType.HOTSPOT -> { s.social += 2 * m; s.energy += 1 * m }
+            DeviceType.TABLET, DeviceType.GAMEPAD, DeviceType.CAMERA -> s.happiness += 2 * m
+            DeviceType.LAPTOP, DeviceType.KEYBOARD, DeviceType.APPLIANCE -> s.smarts += 2 * m
+            DeviceType.TV -> { s.happiness += 3 * m; s.energy -= 1 * m }
+            DeviceType.CAR, DeviceType.TRACKER, DeviceType.CELL, DeviceType.UNKNOWN -> b.xp += (2 * m).toInt().coerceAtLeast(1)
+            DeviceType.LIGHT, DeviceType.ROUTER -> s.energy += 2 * m
+            DeviceType.PRINTER -> s.fullness += 2 * m
+            DeviceType.HEALTH -> s.health += 3 * m
+            DeviceType.BUDDY -> { s.social += 4 * m; s.happiness += 3 * m }
+        }
+        return true
+    }
+
+    /** The phone is actually connected to this device: a much bigger bonus, once per device per 6 h. */
+    fun onConnected(sig: SignalInfo, now: Long): List<GameEvent> {
+        val key = "${sig.kind.name}:${sig.id}"
+        val r = g.devices.getOrPut(key) { DeviceRecord(sig.id, sig.name, sig.kind, DeviceClassifier.classify(sig), now, now, bestRssi = sig.rssi) }
+        if (now - r.lastConnected < 6 * 3_600_000L) return emptyList()
+        r.lastConnected = now
+        r.timesConnected++
+        g.bump(C.CONNECTIONS)
+        val ev = mutableListOf<GameEvent>()
+        if (b.hatched) {
+            applyTypeEffect(r.type, 5.0)
+            s.happiness += 5
+            s.clampAll()
+            ev += GameEvent.Say("Connected to ${r.name.ifBlank { r.type.label }}! ${r.type.icon} Bonus: ${r.type.effect}!", Anim.SPARKLE)
+            ev += gainXp(15, now)
+            grantCoins(5, ev)
+        }
+        g.log(now, "🔗", "Connected to ${r.name.ifBlank { r.type.label }} (${r.timesConnected}×).")
+        ev += checkAchievements(now)
+        return ev
+    }
+
+    fun onCells(cells: List<SignalInfo>, now: Long): List<GameEvent> {
+        if (cells.isEmpty()) return emptyList()
+        val before = g.devices.keys.count { it.startsWith("CELL:") }
+        val ev = recordDevices(cells, now).toMutableList()
+        val fresh = g.devices.keys.count { it.startsWith("CELL:") } - before
+        if (fresh > 0) {
+            g.bump(C.CELLS, fresh.toLong())
+            if (b.hatched && onceEvery("cell_say", now, 30 * 60_000L)) ev += GameEvent.Say("I spotted ${cells.size} cell tower${if (cells.size == 1) "" else "s"}! 🗼", Anim.SPARKLE)
+            ev += gainXp(fresh * 2, now)
+        }
+        ev += checkAchievements(now)
+        return ev
+    }
+
+    // ---------------------------------------------------------------- friends
+
+    fun myCard(): Friend = Friend(
+        id = g.myId, name = b.name, owner = g.owner.name, species = b.species, sex = b.sex, hue = b.hue,
+        pattern = b.pattern, level = b.level, accessory = b.accessory, addedAt = 0L,
+    )
+
+    fun addFriend(card: Friend, now: Long, viaLink: Boolean): List<GameEvent> {
+        if (card.id == g.myId) return listOf(GameEvent.Say("That's ME! Hehe.", Anim.HAPPY))
+        val existing = g.friends.firstOrNull { it.id == card.id }
+        if (existing != null) {
+            existing.name = card.name; existing.owner = card.owner; existing.species = card.species; existing.hue = card.hue
+            existing.level = card.level; existing.accessory = card.accessory; existing.pattern = card.pattern; existing.sex = card.sex
+            if (!viaLink) existing.lastNearby = now
+            return emptyList()
+        }
+        card.addedAt = now; card.viaLink = viaLink
+        if (!viaLink) card.lastNearby = now
+        card.onScreen = g.friends.count { it.onScreen } < 4
+        g.friends.add(card)
+        g.bump(C.FRIENDS)
+        if (!viaLink) g.bump(C.NEARBY_MEETS)
+        val ev = mutableListOf<GameEvent>()
+        if (b.hatched) {
+            s.social += 10; s.happiness += 8; s.clampAll()
+            ev += GameEvent.Say("A new friend! Hi ${card.name} the ${card.species.label.lowercase()}! ${card.species.emoji}", Anim.LOVE)
+            ev += gainXp(20, now)
+        }
+        g.log(now, "🐾", "Made friends with ${card.name}${if (card.owner.isNotBlank()) " (${card.owner}'s buddy)" else ""}${if (viaLink) " via link code" else " nearby"}.")
+        ev += checkAchievements(now)
+        return ev
+    }
+
+    fun interact(friendId: String, action: String, now: Long): List<GameEvent> {
+        val f = g.friends.firstOrNull { it.id == friendId } ?: return emptyList()
+        if (!b.hatched) return listOf(GameEvent.Say("*the egg wobbles at ${f.name}*", Anim.SHOCK))
+        if (b.asleep) return listOf(say(Topic.ASLEEP_TAP, now, Anim.SLEEP))
+        val ev = mutableListOf<GameEvent>()
+        val fresh = onceEvery("play_${f.id}_$action", now, 10 * 60_000L)
+        val text = when (action) {
+            "wave" -> listOf("*waves at ${f.name}* Hiii!", "Hey ${f.name}! 👋", "${f.name}! Over here!").random(rnd)
+            "hug" -> { if (fresh) { s.happiness += 6; s.social += 4 }; listOf("*big hug for ${f.name}* 🤗", "Group hug!", "${f.name} gives the best hugs.").random(rnd) }
+            "play" -> { if (fresh) { s.happiness += 10; s.energy -= 5; s.fitness += 2; g.bump(C.PLAYDATES) }; listOf("Tag, you're it, ${f.name}!", "Let's race to the router!", "*plays hide and seek with ${f.name}*").random(rnd) }
+            "gift" -> {
+                if (g.coins < 5) return listOf(GameEvent.Say("We need 5 coins for a gift!", Anim.SAD))
+                g.coins -= 5; if (fresh) s.happiness += 5
+                "I gave ${f.name} a ${listOf("shiny pixel", "barcode cookie", "tiny antenna", "glowing pebble", "Wi-Fi flower").random(rnd)}! 🎁"
+            }
+            "dance" -> { if (fresh) { s.happiness += 6; s.fitness += 3; g.bump(C.DANCES) }; "*dance battle with ${f.name}* 💃🕺" }
+            else -> "Hi ${f.name}!"
+        }
+        if (fresh) { f.friendship = min(100, f.friendship + 5); ev += gainXp(3, now) }
+        s.clampAll()
+        ev += GameEvent.Say(text, when (action) { "hug" -> Anim.LOVE; "dance" -> Anim.DANCE; else -> Anim.HAPPY })
+        ev += checkAchievements(now)
+        return ev
+    }
+
+    fun addMessage(friendId: String, text: String, fromMe: Boolean, now: Long): List<GameEvent> {
+        val f = g.friends.firstOrNull { it.id == friendId } ?: return emptyList()
+        f.messages.add(FriendMsg(fromMe, text.take(300), now))
+        while (f.messages.size > 100) f.messages.removeAt(0)
+        if (fromMe) g.bump(C.MESSAGES)
+        val ev = mutableListOf<GameEvent>()
+        if (!fromMe) {
+            g.log(now, "✉️", "Message from ${f.name}: $text")
+            if (b.hatched) { s.social += 3; s.happiness += 3; s.clampAll(); ev += GameEvent.Say("📨 ${f.name} says: \"$text\"", Anim.HAPPY) }
+        }
+        f.friendship = min(100, f.friendship + 1)
+        ev += checkAchievements(now)
+        return ev
+    }
+
+    /** A discoverable buddy showed up in Bluetooth range. */
+    fun onNearbyBuddy(card: Friend, rssi: Int, now: Long): List<GameEvent> {
+        val known = g.friends.firstOrNull { it.id == card.id }
+        val ev = mutableListOf<GameEvent>()
+        if (known == null) ev += addFriend(card, now, viaLink = false)
+        else {
+            val wasAway = now - known.lastNearby > 30 * 60_000L
+            known.lastNearby = now; known.level = card.level; known.name = card.name; known.hue = card.hue
+            if (wasAway && b.hatched) {
+                g.bump(C.NEARBY_MEETS)
+                s.social += 5; s.happiness += 4; s.clampAll()
+                ev += GameEvent.Say("${known.name} is nearby! ${known.species.emoji} ${if (rssi > -60) "Right next to us!" else "Somewhere close!"}", Anim.LOVE)
+            }
+        }
+        ev += checkAchievements(now)
+        return ev
+    }
+
+    // ---------------------------------------------------------------- physics reactions
+
+    /** The physics sim bumped the buddy into a wall/floor with [force] (0..1+). */
+    fun onBump(force: Float, now: Long): List<GameEvent> {
+        if (!b.hatched || force < 0.35f || !onceEvery("bump", now, 1_500L)) return emptyList()
+        g.bump(C.BUMPS)
+        val ev = mutableListOf<GameEvent>()
+        if (b.asleep) { b.asleep = false; s.happiness -= 4; ev += GameEvent.Say("Hey! I was sleeping! 😾", Anim.ANGRY) }
+        else if (force > 0.9f) { s.happiness -= 2; ev += GameEvent.Say(listOf("OUCH!", "Bonk! @_@", "Whoa, careful!", "My antenna!!").random(rnd), Anim.DIZZY) }
+        else { s.happiness += 1; ev += GameEvent.Say(listOf("Wheee!", "Boing!", "Again!", "*bounce bounce*", "This is fun!").random(rnd), Anim.HAPPY) }
+        s.clampAll()
+        ev += checkAchievements(now)
+        return ev
+    }
+
     // ---------------------------------------------------------------- moods & ambient chatter
 
     fun mood(now: Long): String = when {
@@ -644,7 +930,7 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
 
     /** Something to say when the user is just watching. Picks the most pressing need first. */
     fun ambient(now: Long): GameEvent.Say {
-        if (!b.hatched) return GameEvent.Say(listOf("*wobble*", "*tap tap from inside*", "*the egg glows faintly*", "Scan a code to hatch me!").random(rnd))
+        if (!b.hatched) return GameEvent.Say(listOf("*wobble*", "*tap tap from inside*", "*the egg glows faintly*", "Keep me warm! Tap me or scan things!").random(rnd))
         val topic = when {
             b.asleep -> Topic.ASLEEP_TAP
             b.sick -> Topic.SICK
@@ -720,6 +1006,10 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
         if (abs(now - last) < periodMs) return false
         g.daily[key] = now
         return true
+    }
+
+    companion object {
+        const val DEFAULT_INCUBATION = 15 * 60_000L
     }
 
     fun isNight(now: Long): Boolean {

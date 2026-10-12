@@ -53,6 +53,12 @@ fun GameData.look(now: Long) = BuddyLook(
     hue = buddy.hue, stage = buddy.stage(now), pattern = buddy.pattern, sex = buddy.sex, accessory = buddy.accessory,
     asleep = buddy.asleep, sick = buddy.sick, poops = buddy.poops, dirty = buddy.stats.hygiene < 30,
     happiness = buddy.stats.happiness, weight = buddy.weight, tantrum = buddy.tantrum, seed = buddy.seed, dead = buddy.dead,
+    species = buddy.species, outfit = buddy.outfit, eggProgress = buddy.eggProgress(now),
+)
+
+fun com.realcak3d.scanimal.core.Friend.look(now: Long) = BuddyLook(
+    hue = hue, stage = when { level >= 25 -> Stage.ELDER; level >= 10 -> Stage.ADULT; level >= 5 -> Stage.TEEN; level >= 2 -> Stage.CHILD; else -> Stage.BABY },
+    pattern = pattern, sex = sex, accessory = accessory, species = species, seed = id.hashCode().toLong(),
 )
 
 @Composable
@@ -177,7 +183,7 @@ fun XpBar(xp: Int, need: Int, modifier: Modifier = Modifier) {
 fun SpeechBubble(text: String) {
     Text(
         text,
-        color = Pal.bg,
+        color = Color(0xFF14202E),
         fontSize = 15.sp,
         fontWeight = FontWeight.SemiBold,
         textAlign = TextAlign.Center,
@@ -191,12 +197,13 @@ fun SpeechBubble(text: String) {
 @Composable
 fun RoomBackdrop(modifier: Modifier, night: Boolean, asleep: Boolean) {
     androidx.compose.foundation.Canvas(modifier) {
-        val top = if (night || asleep) Color(0xFF0A0F1F) else Color(0xFF12233D)
-        val bottom = if (night || asleep) Color(0xFF111A30) else Color(0xFF1B3354)
+        val th = Pal.theme
+        val top = if (night || asleep) Color(0xFF0A0F1F) else th.roomTop
+        val bottom = if (night || asleep) Color(0xFF111A30) else th.roomBottom
         drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(top, bottom)))
         // Radar grid floor
         val floorY = size.height * 0.8f
-        drawRect(Color(0xFF0E1A2E), Offset(0f, floorY), androidx.compose.ui.geometry.Size(size.width, size.height - floorY))
+        drawRect(if (night || asleep) Color(0xFF0E1A2E) else th.floor, Offset(0f, floorY), androidx.compose.ui.geometry.Size(size.width, size.height - floorY))
         for (i in 0..10) {
             val x = size.width * i / 10f
             drawLine(Pal.mint.copy(alpha = 0.10f), Offset(size.width / 2 + (x - size.width / 2) * 0.4f, floorY), Offset(x, size.height), 1.5f)

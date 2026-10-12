@@ -1,6 +1,6 @@
 package com.realcak3d.scanimal.core
 
-enum class ItemKind { CONSUMABLE, COSMETIC, PAINT }
+enum class ItemKind { CONSUMABLE, COSMETIC, OUTFIT, PAINT }
 
 data class Item(
     val id: String,
@@ -34,6 +34,22 @@ object Items {
         Item("wizard", "Wizard Hat", "🧙", 120, ItemKind.COSMETIC, "Grants absolutely no magic.", minLevel = 8),
         Item("halo", "Halo", "😇", 150, ItemKind.COSMETIC, "Angelic glow.", minLevel = 10),
         Item("crown", "Crown", "👑", 300, ItemKind.COSMETIC, "Royalty of the radar.", minLevel = 15),
+        Item("sunglasses", "Cool Shades", "😎", 45, ItemKind.COSMETIC, "Too cool for the radar."),
+        Item("flower_crown", "Flower Crown", "🌸", 60, ItemKind.COSMETIC, "Spring vibes.", minLevel = 2),
+        Item("pirate", "Pirate Hat", "🏴‍☠️", 90, ItemKind.COSMETIC, "Arrr, scan the seven seas.", minLevel = 4),
+        Item("cowboy", "Cowboy Hat", "🤠", 70, ItemKind.COSMETIC, "Yeehaw.", minLevel = 3),
+        Item("chef", "Chef Hat", "👨‍🍳", 55, ItemKind.COSMETIC, "Barcodes taste better with style."),
+        Item("helmet", "Space Helmet", "🧑‍🚀", 160, ItemKind.COSMETIC, "For satellite visits.", minLevel = 7),
+        // Outfits
+        Item("scarf", "Cozy Scarf", "🧣", 35, ItemKind.OUTFIT, "Warm neck, warm heart."),
+        Item("bowtie", "Bow Tie", "🎀", 30, ItemKind.OUTFIT, "Dapper."),
+        Item("cape", "Hero Cape", "🦸", 90, ItemKind.OUTFIT, "Flutters when shaken.", minLevel = 3),
+        Item("sweater", "Knit Sweater", "🧶", 60, ItemKind.OUTFIT, "Hand-knit by a router."),
+        Item("tutu", "Tutu", "🩰", 50, ItemKind.OUTFIT, "For the dance party."),
+        Item("spacesuit", "Space Suit", "🚀", 200, ItemKind.OUTFIT, "Pairs with the space helmet.", minLevel = 8),
+        Item("ninja", "Ninja Suit", "🥷", 120, ItemKind.OUTFIT, "Silent scanning.", minLevel = 6),
+        Item("raincoat", "Raincoat", "🧥", 45, ItemKind.OUTFIT, "Bright yellow. Very visible on walks."),
+        Item("tuxedo", "Tuxedo", "🤵", 150, ItemKind.OUTFIT, "Black tie scanning.", minLevel = 10),
         // Paints
         Item("paint_mint", "Mint Paint", "🟩", 40, ItemKind.PAINT, "Recolor your buddy minty green."),
         Item("paint_sky", "Sky Paint", "🟦", 40, ItemKind.PAINT, "Recolor your buddy sky blue."),

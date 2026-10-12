@@ -97,7 +97,7 @@ fun ChatScreen(repo: GameRepository) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = if (m.fromBuddy) Arrangement.Start else Arrangement.End) {
                     Text(
                         m.text, fontSize = 15.sp,
-                        color = if (m.fromBuddy) Pal.bg else Pal.text,
+                        color = if (m.fromBuddy) Color(0xFF14202E) else Pal.text,
                         modifier = Modifier
                             .widthIn(max = 290.dp)
                             .clip(RoundedCornerShape(16.dp))

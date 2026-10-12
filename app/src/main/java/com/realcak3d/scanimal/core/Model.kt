@@ -36,6 +36,92 @@ enum class Personality(val label: String, val blurb: String) {
 
 enum class Pattern { PLAIN, SPOTS, STRIPES, STARS }
 
+enum class Species(val label: String, val emoji: String, val blurb: String, val defaultHue: Float) {
+    BLOB("Blip", "🟢", "The original radar critter. Antenna included.", 160f),
+    DINO("Dino", "🦖", "Tiny arms, big heart, spiky back.", 110f),
+    DOG("Dog", "🐶", "Floppy ears and a waggy tail.", 30f),
+    CAT("Cat", "🐱", "Pointy ears, whiskers, attitude.", 25f),
+    CHAMELEON("Chameleon", "🦎", "Slowly shifts color. Curly tail.", 95f),
+    PLANT("Sprout", "🌱", "Grows from sprout to flower to tree.", 120f),
+    FISH("Fish", "🐟", "Fins, bubbles, and a love of floating.", 200f),
+    BIRD("Bird", "🐦", "Beak, wings and a fancy crest.", 50f),
+    HUMAN("Human", "🧑", "A tiny person with hair and a big smile.", 28f),
+    ALIEN("Alien", "👽", "Two antennae and a third eye.", 140f),
+    ROBOT("Robot", "🤖", "Bolts, screen face and a blinking light.", 210f),
+}
+
+enum class DeviceType(val label: String, val icon: String, val effect: String) {
+    EARBUDS("Earbuds", "🎧", "music: +happiness"),
+    HEADPHONES("Headphones", "🎧", "music: +happiness"),
+    SPEAKER("Speaker", "🔊", "dance party: +happiness, +fitness"),
+    WATCH("Smartwatch", "⌚", "workout buddy: +fitness"),
+    FITNESS("Fitness band", "💪", "workout buddy: +fitness"),
+    PHONE("Phone", "📱", "new friend: +social"),
+    TABLET("Tablet", "📲", "cartoons: +happiness"),
+    LAPTOP("Computer", "💻", "homework: +smarts"),
+    TV("TV", "📺", "binge watching: +happiness, -energy"),
+    CAR("Car", "🚗", "road trip: +XP"),
+    KEYBOARD("Keyboard", "⌨️", "typing lessons: +smarts"),
+    MOUSE("Mouse", "🖱️", "chasing the cursor: +fitness"),
+    GAMEPAD("Game controller", "🎮", "gaming: +happiness"),
+    TRACKER("Item tracker", "🏷️", "hide and seek: +XP"),
+    LIGHT("Smart light", "💡", "sunbathing: +energy"),
+    ROUTER("Router", "📡", "packet snack: +energy"),
+    HOTSPOT("Phone hotspot", "📶", "borrowed Wi-Fi: +energy, +social"),
+    PRINTER("Printer", "🖨️", "paper snack: +fullness"),
+    CAMERA("Camera", "📷", "photo shoot: +happiness"),
+    HEALTH("Health device", "🩺", "check-up: +health"),
+    APPLIANCE("Smart appliance", "🏠", "smart home tour: +smarts"),
+    BUDDY("Scanimal", "🐾", "playdate: +social, +happiness"),
+    CELL("Cell tower", "🗼", "tower spotting: +XP"),
+    UNKNOWN("Mystery device", "❔", "curiosity: +XP"),
+}
+
+/** Everything the radar has ever spotted, with how often it was seen and connected. */
+class DeviceRecord(
+    val id: String,
+    var name: String,
+    val kind: SignalKind,
+    var type: DeviceType,
+    val firstSeen: Long,
+    var lastSeen: Long,
+    var timesSeen: Int = 1,
+    var timesConnected: Int = 0,
+    var bestRssi: Int = -127,
+    var lastConnected: Long = 0L,
+)
+
+data class FriendMsg(val fromMe: Boolean, val text: String, val time: Long)
+
+/** Another player's buddy: imported from a link code or met nearby over Bluetooth. */
+class Friend(
+    val id: String,
+    var name: String,
+    var owner: String,
+    var species: Species,
+    var sex: Sex,
+    var hue: Float,
+    var pattern: Pattern,
+    var level: Int,
+    var accessory: String?,
+    var addedAt: Long,
+    var lastNearby: Long = 0L,
+    var onScreen: Boolean = true,
+    var friendship: Int = 0,
+    val messages: MutableList<FriendMsg> = mutableListOf(),
+    var viaLink: Boolean = true,
+)
+
+data class OwnerProfile(
+    var name: String = "",
+    var birthday: String = "",      // "MM-DD"
+    var favoriteColor: String = "",
+    var favoriteFood: String = "",
+    var hobby: String = "",
+    var pet: String = "",
+    var done: Boolean = false,
+)
+
 class Stats(
     var fullness: Double = 70.0,
     var happiness: Double = 70.0,
@@ -84,8 +170,18 @@ class Buddy(
     var sleptAt: Long = 0L,
     var hoursNeglected: Double = 0.0,
     var dead: Boolean = false,
+    var species: Species = Species.BLOB,
+    var hatchReadyAt: Long = 0L,
+    var outfit: String? = null,
 ) {
     val hatched get() = bornAt > 0L
+
+    /** 0..1 incubation progress for the egg. */
+    fun eggProgress(now: Long): Float {
+        if (hatched) return 1f
+        if (hatchReadyAt <= eggLaidAt) return 0f
+        return ((now - eggLaidAt).toFloat() / (hatchReadyAt - eggLaidAt)).coerceIn(0f, 1f)
+    }
 
     fun ageHours(now: Long): Double = if (!hatched) 0.0 else (now - bornAt) / 3_600_000.0
 
@@ -112,6 +208,14 @@ data class Settings(
     var sounds: Boolean = true,
     var onlineProductLookup: Boolean = true,
     var autoSleepAtNight: Boolean = true,
+    var backgroundMode: Boolean = false,
+    var discoverable: Boolean = true,
+    var autoUpdate: Boolean = true,
+    var metric: Boolean = true,
+    var theme: String = "radar",
+    var physics: Boolean = true,
+    var showVisitors: Boolean = true,
+    var ambientChatter: Boolean = true,
 )
 
 /** A signal seen by the radar (Wi-Fi network or Bluetooth device). */
@@ -122,9 +226,11 @@ data class SignalInfo(
     val kind: SignalKind,
     val frequencyMhz: Int = 0,
     val secured: Boolean = true,
+    val classHint: Int = -1,      // Bluetooth major device class, if known
+    val connected: Boolean = false,
 )
 
-enum class SignalKind { WIFI, BLUETOOTH, BLE }
+enum class SignalKind { WIFI, BLUETOOTH, BLE, CELL }
 
 data class SatelliteInfo(
     val svid: Int,
@@ -159,6 +265,11 @@ class GameData(
     var favoriteFood: String = "",
     var bestScores: MutableMap<String, Int> = mutableMapOf(),
     var created: Long = 0L,
+    var myId: String = "",
+    var owner: OwnerProfile = OwnerProfile(),
+    val devices: MutableMap<String, DeviceRecord> = mutableMapOf(),
+    val friends: MutableList<Friend> = mutableListOf(),
+    var lastVersionCheck: Long = 0L,
 ) {
     fun count(key: String): Long = counters[key] ?: 0L
     fun bump(key: String, by: Long = 1) { counters[key] = count(key) + by }
@@ -221,4 +332,16 @@ object C {
     const val DARK_NAPS = "dark_naps"
     const val MAGNETS = "magnets"
     const val FEEDS = "feeds"
+    const val DISTANCE_M = "distance_m"
+    const val WALKS = "walks"
+    const val CONNECTIONS = "connections"
+    const val WIFI_CONNECTED_HOURS = "wifi_connected_hours"
+    const val CELLS = "cells_seen"
+    const val DEVICE_TYPES = "device_types"
+    const val FRIENDS = "friends"
+    const val NEARBY_MEETS = "nearby_meets"
+    const val MESSAGES = "messages_sent"
+    const val PLAYDATES = "playdates"
+    const val BUMPS = "wall_bumps"
+    const val HATCH_WARMS = "hatch_warms"
 }
