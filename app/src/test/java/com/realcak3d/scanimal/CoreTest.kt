@@ -314,3 +314,15 @@ class AdvertTest {
         assertNotNull(BuddyAdvert.decode(long))
     }
 }
+
+class DspTest {
+    @Test fun fftFindsTone() {
+        val n = 1024; val rate = 22050.0; val f = 1000.0
+        val s = FloatArray(n) { (kotlin.math.sin(2 * Math.PI * f * it / rate)).toFloat() }
+        val spec = Dsp.spectrum(s)
+        val peak = spec.indices.maxByOrNull { spec[it] }!!
+        val peakHz = peak * rate / n
+        assertTrue(kotlin.math.abs(peakHz - f) < 30, "peak at $peakHz")
+        assertEquals(6, Dsp.wifiChannel(2437)); assertEquals(36, Dsp.wifiChannel(5180)); assertEquals(1, Dsp.wifiChannel(5955))
+    }
+}

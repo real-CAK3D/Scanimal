@@ -148,6 +148,10 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
                     }
                 },
             )
+            val nearby by hub.link.nearby.collectAsStateWithLifecycle()
+            if (g.settings.showVisitors && b.hatched) {
+                VisitorLayer(repo, hub, g.friends.filter { it.onScreen }, nearby.map { it.card.id }.toSet(), go, Modifier.fillMaxSize())
+            }
             if (speech.text.isNotBlank()) {
                 AnimatedContent(
                     targetState = speech.text, label = "speech",

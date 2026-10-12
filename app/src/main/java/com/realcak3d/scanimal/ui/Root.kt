@@ -58,6 +58,7 @@ import kotlinx.coroutines.delay
 
 enum class Screen(val title: String, val icon: String) {
     HOME("Home", "🏠"), SCAN("Feed", "📷"), RADAR("Radar", "📡"), CHAT("Chat", "💬"), MORE("More", "☰"),
+    FRIENDS("Friends", "🐾"), DEVICES("Devices", "🗃️"), SPECTRUM("Spectrum", "🌈"),
     SKY("Sky", "🛰️"), GAMES("Games", "🎮"), SHOP("Shop", "🛍️"), AWARDS("Awards", "🏆"), PROFILE("Profile", "🪪"),
     JOURNAL("Journal", "📜"), LAB("Sensor Lab", "🧪"), SETTINGS("Settings", "⚙️"),
 }
@@ -132,6 +133,9 @@ fun ScanimalRoot(repo: GameRepository, hub: SensorHub, hasNfc: Boolean) {
                 Screen.RADAR -> RadarScreen(repo, hub)
                 Screen.CHAT -> ChatScreen(repo)
                 Screen.MORE -> MoreScreen(go = { screen = it })
+                Screen.FRIENDS -> FriendsScreen(repo, hub, go = { screen = it })
+                Screen.DEVICES -> DevicesScreen(repo, hub)
+                Screen.SPECTRUM -> SpectrumScreen(repo, hub)
                 Screen.SKY -> SkyScreen(repo, hub)
                 Screen.GAMES -> GamesScreen(repo, hub)
                 Screen.SHOP -> ShopScreen(repo)
@@ -168,9 +172,10 @@ fun ScanimalRoot(repo: GameRepository, hub: SensorHub, hasNfc: Boolean) {
 
 @Composable
 fun MoreScreen(go: (Screen) -> Unit) {
-    val items = listOf(Screen.SKY, Screen.GAMES, Screen.SHOP, Screen.AWARDS, Screen.PROFILE, Screen.JOURNAL, Screen.LAB, Screen.SETTINGS)
+    val items = listOf(Screen.FRIENDS, Screen.DEVICES, Screen.SPECTRUM, Screen.SKY, Screen.GAMES, Screen.SHOP, Screen.AWARDS, Screen.PROFILE, Screen.JOURNAL, Screen.LAB, Screen.SETTINGS)
     val blurbs = mapOf(
-        Screen.SKY to "GPS satellites overhead", Screen.GAMES to "Mini-games for coins", Screen.SHOP to "Items, hats & paint",
+        Screen.FRIENDS to "Link codes, nearby buddies, messages", Screen.DEVICES to "Every gadget you've found",
+        Screen.SPECTRUM to "Wi-Fi channels, audio, EMF", Screen.SKY to "GPS satellites overhead", Screen.GAMES to "Mini-games for coins", Screen.SHOP to "Items, hats & paint",
         Screen.AWARDS to "Achievements", Screen.PROFILE to "Stats & life story", Screen.JOURNAL to "Everything that happened",
         Screen.LAB to "Live phone sensors", Screen.SETTINGS to "Options & permissions",
     )

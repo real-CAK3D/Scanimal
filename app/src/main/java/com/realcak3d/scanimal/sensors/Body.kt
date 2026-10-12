@@ -210,6 +210,11 @@ class BodySensors(private val ctx: Context) : SensorEventListener {
 class SoundMeter(private val ctx: Context) {
     private val _db = MutableStateFlow(0f)
     val db: StateFlow<Float> = _db.asStateFlow()
+    private val _wave = MutableStateFlow(FloatArray(0))
+    /** Latest ~1024 samples, -1..1, for the oscilloscope and spectrum views. */
+    val wave: StateFlow<FloatArray> = _wave.asStateFlow()
+    val sampleRate = 22050
+    private var users = 0
     var onLoud: (() -> Unit)? = null
     @Volatile private var running = false
     private var thread: Thread? = null
@@ -226,6 +231,8 @@ class SoundMeter(private val ctx: Context) {
             val rec = runCatching { AudioRecord(MediaRecorder.AudioSource.MIC, rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, size) }.getOrNull()
             if (rec == null || rec.state != AudioRecord.STATE_INITIALIZED) { running = false; return@Thread }
             val buf = ShortArray(size / 2)
+            val window = FloatArray(1024)
+            var lastWave = 0L
             rec.startRecording()
             var loudSince = 0L
             while (running) {
@@ -236,6 +243,12 @@ class SoundMeter(private val ctx: Context) {
                 val rms = sqrt(sum / n)
                 val db = (20 * log10(rms.coerceAtLeast(1.0))).toFloat() // ~0..90
                 _db.value = db
+                // Slide new samples into the analysis window.
+                val take = minOf(n, window.size)
+                System.arraycopy(window, take, window, 0, window.size - take)
+                for (i in 0 until take) window[window.size - take + i] = buf[n - take + i] / 32768f
+                val tNow = System.currentTimeMillis()
+                if (tNow - lastWave > 45) { lastWave = tNow; _wave.value = window.copyOf() }
                 val now = System.currentTimeMillis()
                 if (db > 68) { if (loudSince == 0L) loudSince = now; if (now - loudSince > 700) { loudSince = 0L; onLoud?.invoke() } } else loudSince = 0L
             }
@@ -244,6 +257,10 @@ class SoundMeter(private val ctx: Context) {
     }
 
     fun stop() { running = false; thread = null; _db.value = 0f }
+
+    /** Reference-counted so the Lab and the Spectrum view can both use the mic. */
+    fun acquire() { users++; start() }
+    fun release() { users = (users - 1).coerceAtLeast(0); if (users == 0) stop() }
 }
 
 /** Vibration + beeps. */

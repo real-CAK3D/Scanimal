@@ -79,6 +79,8 @@ dependencies {
     implementation("androidx.camera:camera-view:$camerax")
     // Bundled model: works offline, no Play Services download needed.
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
+    // QR rendering for friend link codes
+    implementation("com.google.zxing:core:3.5.3")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
