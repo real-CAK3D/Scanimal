@@ -136,13 +136,15 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
                         else {
                             if (t >= nextWander) {
                                 val tx = toyXNow
-                                target = if (toyNow != null && kotlin.random.Random.nextInt(3) == 0) ((tx - 0.5f) * 1.7f).coerceIn(-0.85f, 0.85f)
-                                         else kotlin.random.Random.nextFloat() * 1.7f - 0.85f
-                                nextWander = t + 2500L + kotlin.random.Random.nextLong(5000L)
+                                target = if (toyNow != null && kotlin.random.Random.nextInt(3) == 0) ((tx - 0.5f) * 1.5f).coerceIn(-0.75f, 0.75f)
+                                         else kotlin.random.Random.nextFloat() * 1.5f - 0.75f
+                                // Longer, varied pauses so it strolls then loiters (bored) rather than pacing non-stop.
+                                nextWander = t + 5000L + kotlin.random.Random.nextLong(9000L)
                             }
                             val d = target - wanderX
                             strolling = kotlin.math.abs(d) > 0.02f
-                            if (kotlin.math.abs(d) > 0.01f) { facing = if (d > 0) 1f else -1f; wanderX += d.coerceIn(-1f, 1f) * (dt / 1000f) * 0.6f }
+                            // Slow, deliberate stroll (was ~0.6/s, which read as frantic/glitchy with frame art).
+                            if (kotlin.math.abs(d) > 0.01f) { facing = if (d > 0) 1f else -1f; wanderX += d.coerceIn(-1f, 1f) * (dt / 1000f) * 0.16f }
                             // Reached the toy? poke it (throttled; engine throttles too).
                             val toyPos = (toyXNow - 0.5f) * 1.7f
                             if (toyNow != null && kotlin.math.abs(wanderX - toyPos) < 0.1f && t - lastToy > 20000L) { lastToy = t; repo.act { n -> toyInteract(n) } }

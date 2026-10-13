@@ -221,7 +221,7 @@ private fun DrawScope.drawBuddy(
     // Makes even a single-image sprite read as a walking character instead of a sliding sticker.
     if (walking && anim == Anim.NONE && !look.asleep && !underwater) {
         val wt = t * 8f
-        val amp = if (frames.isNotEmpty()) 0.3f else 1f   // real frames carry the gait; just a touch of bob
+        val amp = if (frames.isNotEmpty()) 0f else 1f   // real frames carry the gait; no procedural bob on top
         bob = -abs(sin(wt)) * 3.6f * u * amp
         tilt = sin(wt * 0.5f) * 3.5f * amp
         val push = sin(wt) * 0.05f * amp
@@ -249,10 +249,12 @@ private fun DrawScope.drawBuddy(
 
     rotate(tilt, Offset(cx, ground)) {
         // Prefer a bundled frame sequence for this action; otherwise the single sprite; otherwise vector.
-        val animImg = if (frames.isNotEmpty()) frames[((t * 10f).toInt().coerceAtLeast(0)) % frames.size] else sprite
+        // Calmer frame rates: a gentle idle, a steady (not frantic) walk.
+        val fps = if (walking) 7f else 4f
+        val animImg = if (frames.isNotEmpty()) frames[((t * fps).toInt().coerceAtLeast(0)) % frames.size] else sprite
         if (animImg != null) {
             val iw = animImg.width.toFloat(); val ih = animImg.height.toFloat()
-            val w = bw * 2.6f; val h = w * (ih / iw)
+            val w = bw * 1.6f; val h = w * (ih / iw)
             val l = cx - w / 2; val topY = (cy + bh * 0.52f) - h
             drawImage(animImg, dstOffset = IntOffset(l.toInt(), topY.toInt()), dstSize = IntSize(w.toInt().coerceAtLeast(1), h.toInt().coerceAtLeast(1)),
                 alpha = if (look.dead) 0.5f else 1f)
