@@ -31,3 +31,21 @@ blob = signal command center. Each leaves an open floor area in the lower half f
 - Sprites are drawn bigger now: consider `w = bw * 2.6` in `drawBuddy` since the art has no empty margins at the sides.
 
 Note: `fish_<stage>.webp` is the fish at home (no scuba, underwater background). `fish_<stage>_scuba.webp` is the fish visiting a land buddy.
+
+## Animation frames (the app now plays these)
+
+To make a species actually walk / eat / idle (not just a transformed still), drop frame
+sequences here:
+
+    app/src/main/assets/sprites/anim/<species>_<stage>_<action>_<n>.webp   (n starts at 1)
+
+- actions: `idle`, `walk`, `eat`, `happy`, `sleep`
+- same framing/size as the base sprites (512×512, transparent, feet on the bottom edge, no side margins)
+- number frames from 1 with no gaps; the app loops them at ~10 fps and stops at the first missing n (max 16)
+- any action with no frames falls back to the single `<species>_<stage>.webp` plus procedural motion,
+  so you can ship one action (e.g. `walk`) for one species and it just works
+- a good first set per species/stage: `walk` 6–8 frames (contact→passing→contact for each leg),
+  `idle` 2–4 frames (breathing/blink), `eat` 4–6, `happy` 4–6, `sleep` 2
+
+Pilot ask: start with one species' `walk` and `idle` at the ADULT stage so we can see a real walk cycle
+end-to-end, then fan out to the other stages/species.

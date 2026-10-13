@@ -97,6 +97,16 @@ fun BuddyView(
         remember(look.species, look.stage, variant) { SpriteStore.image(ctx, look.species, look.stage, variant) } else null
     val bubbleImg: ImageBitmap? = if (Pal.spritesOn && underwater)
         remember { SpriteStore.fx(ctx, "fx_bubble") } else null
+    // Pick an action and load its frame sequence (if the art pack ships one); empty -> single-image fallback.
+    val action = when {
+        look.asleep -> "sleep"
+        anim == Anim.EAT -> "eat"
+        anim == Anim.HAPPY || anim == Anim.LEVEL_UP || anim == Anim.DANCE || anim == Anim.LOVE || anim == Anim.HATCH -> "happy"
+        walking -> "walk"
+        else -> "idle"
+    }
+    val frames: List<ImageBitmap> = if (Pal.spritesOn && look.stage != Stage.EGG && look.species != Species.BLOB)
+        remember(look.species, look.stage, action) { SpriteStore.frames(ctx, look.species, look.stage, action) } else emptyList()
 
     Canvas(
         if (onTap != null) modifier.pointerInput(Unit) { detectTapGestures { tap?.invoke(it) } } else modifier
@@ -109,7 +119,7 @@ fun BuddyView(
         if (look.stage == Stage.EGG) {
             drawEgg(look, t, maxOf(eggCracks, (look.eggProgress * 6).toInt()), active, p)
         } else {
-            drawBuddy(look, t, active, p, lookAt, blink.closedAmount(now), antennaGlow, textPaint, sprite, underwater, bubbleImg, walking)
+            drawBuddy(look, t, active, p, lookAt, blink.closedAmount(now), antennaGlow, textPaint, sprite, underwater, bubbleImg, walking, frames)
         }
     }
 }
@@ -165,7 +175,7 @@ private fun DrawScope.drawEgg(look: BuddyLook, t: Float, cracks: Int, anim: Anim
 }
 
 private fun DrawScope.drawBuddy(
-    look: BuddyLook, t: Float, anim: Anim, p: Float, lookAt: Offset, blink: Float, antennaGlow: Float, textPaint: Paint, sprite: ImageBitmap? = null, underwater: Boolean = false, bubble: ImageBitmap? = null, walking: Boolean = false,
+    look: BuddyLook, t: Float, anim: Anim, p: Float, lookAt: Offset, blink: Float, antennaGlow: Float, textPaint: Paint, sprite: ImageBitmap? = null, underwater: Boolean = false, bubble: ImageBitmap? = null, walking: Boolean = false, frames: List<ImageBitmap> = emptyList(),
 ) {
     val u = min(size.width, size.height) / 100f
     val s = look.stage.scale
@@ -207,6 +217,15 @@ private fun DrawScope.drawBuddy(
         val drift = sin(t * 0.9f) * 0.015f
         squashX = 1f + drift; squashY = 1f - drift
     }
+    // Walking: a grounded two-beat gait — bounce up on each footfall, waddle side to side, push off.
+    // Makes even a single-image sprite read as a walking character instead of a sliding sticker.
+    if (walking && anim == Anim.NONE && !look.asleep && !underwater) {
+        val wt = t * 8f
+        bob = -abs(sin(wt)) * 3.6f * u
+        tilt = sin(wt * 0.5f) * 3.5f
+        val push = sin(wt) * 0.05f
+        squashX = 1f + push; squashY = 1f - push
+    }
 
     val hatching = anim == Anim.HATCH
     val gp = p * p * (3f - 2f * p)                       // smoothstep ease
@@ -228,11 +247,13 @@ private fun DrawScope.drawBuddy(
     }
 
     rotate(tilt, Offset(cx, ground)) {
-        if (sprite != null) {
-            val iw = sprite.width.toFloat(); val ih = sprite.height.toFloat()
+        // Prefer a bundled frame sequence for this action; otherwise the single sprite; otherwise vector.
+        val animImg = if (frames.isNotEmpty()) frames[((t * 10f).toInt().coerceAtLeast(0)) % frames.size] else sprite
+        if (animImg != null) {
+            val iw = animImg.width.toFloat(); val ih = animImg.height.toFloat()
             val w = bw * 2.6f; val h = w * (ih / iw)
             val l = cx - w / 2; val topY = (cy + bh * 0.52f) - h
-            drawImage(sprite, dstOffset = IntOffset(l.toInt(), topY.toInt()), dstSize = IntSize(w.toInt().coerceAtLeast(1), h.toInt().coerceAtLeast(1)),
+            drawImage(animImg, dstOffset = IntOffset(l.toInt(), topY.toInt()), dstSize = IntSize(w.toInt().coerceAtLeast(1), h.toInt().coerceAtLeast(1)),
                 alpha = if (look.dead) 0.5f else 1f)
         } else {
         // Feet. A real walk cycle when strolling (legs stride, knees lift); a dance shuffle otherwise.

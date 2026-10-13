@@ -47,6 +47,27 @@ object SpriteStore {
         return img
     }
 
+    private val frameCache = HashMap<String, List<ImageBitmap>>()
+
+    /**
+     * An animation frame sequence for a species/stage/action, from
+     *   assets/sprites/anim/<species>_<stage>_<action>_1.webp, _2.webp, ...
+     * Returns the frames in order (empty if none are bundled, so callers fall back to the single sprite
+     * plus procedural motion). Actions: "idle", "walk", "eat", "happy", "sleep".
+     */
+    fun frames(ctx: Context, species: Species, stage: Stage, action: String): List<ImageBitmap> {
+        val sp = species.name.lowercase(); val st = stage.name.lowercase()
+        val key = "${sp}_${st}_$action"
+        frameCache[key]?.let { return it }
+        val list = ArrayList<ImageBitmap>()
+        for (i in 1..16) {
+            val img = load(ctx, "sprites/anim/${key}_$i.webp") ?: load(ctx, "sprites/anim/${key}_$i.png") ?: break
+            list.add(img)
+        }
+        frameCache[key] = list
+        return list
+    }
+
     /** A loose effect sprite from assets/sprites/<name>.webp (e.g. "fx_bubble", "fx_bubbles"). */
     fun fx(ctx: Context, name: String): ImageBitmap? {
         val key = "fx_$name"
