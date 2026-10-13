@@ -86,3 +86,35 @@ pack, adult:
 > Row6 turn from side to front (5).
 
 (Full per-pack, per-stage row lists live in section 4; the art session fills them in the same way.)
+
+## 8. MASTER PROMPT — generate everything (attach the life-cycle photo)
+
+Using this one photo of the creature's life stages, generate game animation SPRITE SHEETS for this
+exact creature. It shows the five ages (baby → child → teen → adult → elder); keep it the SAME
+character and use each age for its own stage. Match colors, markings and proportions from the photo —
+do not invent a different creature.
+
+Rules for every sheet: one transparent-background image, a strict grid of equal SQUARE cells, evenly
+spaced, no margins, no text, no grid lines, no drop shadow. In every cell the creature is the SAME
+size, centered horizontally with feet on the bottom edge. Clean cel-shaded semi-realistic style
+matching the photo. Each ROW = one action, animated left→right, a smooth loopable cycle, body centered,
+feet on the baseline, no jitter.
+Facings: "side" = 3/4 side view facing RIGHT (don't draw left — mirrored in code). "front" = toward the
+viewer. "back" = away.
+
+For EACH life stage (baby, child, teen, adult, elder) make THREE sheets:
+
+MOVE — <species>_<stage>_move.webp (6 rows):
+  1 idle front (4) · 2 walk side-right (8) · 3 idle side (4) · 4 walk front toward viewer (6) ·
+  5 walk back/away (6) · 6 turn side→front (5)
+ACT — <species>_<stage>_act.webp (6 rows):
+  1 bored front (5) · 2 interested/perk-up front (5) · 3 scan, peering at a handheld scanner, side (6) ·
+  4 play side (6) · 5 eat front (5) · 6 sleep curled side (5)
+FACE — <species>_<stage>_face.webp (6 rows, all front):
+  1 talk mouth-flap closed→open→mid (3) · 2 happy (4) · 3 sad (4) · 4 angry (4) · 5 surprised (4) ·
+  6 sleepy (4)
+
+Baby exception: the baby MOVE walk rows show it learning to move (crawl → stand → wobbly steps).
+Output 15 files to app/src/main/assets/sprites/anim/ (e.g. chameleon_adult_move.webp), transparent WebP,
+square cells. One image per request is fine — produce them one sheet at a time, character identical
+across all sheets. START with the adult's three sheets.
