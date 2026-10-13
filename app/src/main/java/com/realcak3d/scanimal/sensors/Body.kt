@@ -347,6 +347,8 @@ class Haptics(ctx: Context) {
             "achieve" -> listOf(ToneGenerator.TONE_PROP_BEEP2 to 70, ToneGenerator.TONE_PROP_ACK to 120)
             "sticker" -> listOf(ToneGenerator.TONE_PROP_BEEP to 50, ToneGenerator.TONE_PROP_BEEP2 to 70)
             "notable" -> listOf(ToneGenerator.TONE_SUP_RADIO_ACK to 120)
+            // A distinct "you're near a place you already pinned" chirp: low-high double blip.
+            "revisit" -> listOf(ToneGenerator.TONE_DTMF_1 to 70, ToneGenerator.TONE_DTMF_9 to 110)
             "sad" -> listOf(ToneGenerator.TONE_SUP_ERROR to 180)
             "coin" -> listOf(ToneGenerator.TONE_PROP_ACK to 60)
             else -> listOf(ToneGenerator.TONE_PROP_BEEP to 40)

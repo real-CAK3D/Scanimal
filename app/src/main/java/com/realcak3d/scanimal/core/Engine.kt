@@ -1130,6 +1130,21 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
         g.bump(C.DISCOVERIES_MAPPED)
     }
 
+    /**
+     * The closest already-pinned discovery within [radiusM] of (lat, lon), ignoring pins dropped in the
+     * last [minAgeMs] (so you don't chime on one you just created). Used for the revisit tone while moving.
+     */
+    fun nearestPinnedRevisit(lat: Double, lon: Double, radiusM: Double, minAgeMs: Long, now: Long): Discovery? {
+        var best: Discovery? = null
+        var bestD = radiusM
+        for (d in g.discoveries) {
+            if (now - d.time < minAgeMs) continue
+            val dist = Geo.distanceMeters(lat, lon, d.lat, d.lon)
+            if (dist <= bestD) { bestD = dist; best = d }
+        }
+        return best
+    }
+
     fun onSignificantMotion(now: Long): List<GameEvent> {
         g.bump(C.SIG_MOTION)
         if (!b.hatched || b.asleep) return emptyList()

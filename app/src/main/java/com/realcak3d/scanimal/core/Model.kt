@@ -229,6 +229,7 @@ data class Settings(
     var bigText: Boolean = false,
     var spriteArt: Boolean = true,
     var matureLanguage: Boolean = true,
+    var revisitChime: Boolean = true,
 )
 
 /** A signal seen by the radar (Wi-Fi network or Bluetooth device). */

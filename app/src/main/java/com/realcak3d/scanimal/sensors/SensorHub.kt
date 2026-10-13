@@ -45,6 +45,7 @@ class SensorHub(ctx: Context, val repo: GameRepository) {
             DistanceTracker.feed(repo, loc)
             lastLoc = loc
             if (loc.hasSpeed()) lastSpeed = loc.speed
+            maybeRevisitChime(loc)
             if (loc.hasAltitude() && System.currentTimeMillis() - lastAlt > 60_000) { lastAlt = System.currentTimeMillis(); repo.act { now -> onAltitude(loc.altitude, now) } }
         }
         body.onShake = { haptics.buzz(40, 160); repo.act { now -> onShake(now) } }
@@ -78,6 +79,29 @@ class SensorHub(ctx: Context, val repo: GameRepository) {
     private fun pocketed(): Boolean {
         val r = body.readings.value
         return (r.hasLight && r.lux in 0f..6f) && (!r.hasProximity || r.proximityNear) && r.accel < 2f
+    }
+
+    private var lastRevisitChime = 0L
+    private val revisitChimedAt = HashMap<String, Long>()
+
+    /** While walking or driving, a distinct chirp when we pass within ~40 m of a place we already pinned. */
+    private fun maybeRevisitChime(loc: android.location.Location) {
+        if (!repo.data.settings.revisitChime) return
+        val moving = lastSpeed >= 0.7f || DistanceTracker.walk.value.active   // walking (~2.5 km/h) or faster
+        if (!moving) return
+        val now = System.currentTimeMillis()
+        if (now - lastRevisitChime < 8_000L) return                           // don't chime constantly
+        val d = repo.engine.nearestPinnedRevisit(loc.latitude, loc.longitude, 40.0, 120_000L, now) ?: return
+        val key = "%.5f,%.5f".format(d.lat, d.lon)
+        if (now - (revisitChimedAt[key] ?: 0L) < 120_000L) return             // once per spot per 2 min
+        revisitChimedAt[key] = now; lastRevisitChime = now
+        haptics.sfx("revisit"); haptics.buzz(25, 120)
+        val b = repo.data.buddy
+        if (b.hatched && !b.asleep) repo.say(listOf(
+            "*ping* We've been to ${d.label} before!",
+            "Hey, I pinned ${d.label} around here earlier.",
+            "Back near ${d.label} — I remember this spot.",
+        ).random())
     }
 
     /** Pin newly seen signals on the on-device map (only when the trail is enabled and we have a fix). */
@@ -174,13 +198,24 @@ object Feeder {
 
     fun feed(repo: GameRepository, input: ScanInput): List<GameEvent> {
         val food = FoodFactory.fromScan(input)
-        return repo.act { now ->
+        val events = repo.act { now ->
             if (!g.buddy.hatched) {
                 val warm = warmEgg(now, 120_000L)
                 if (!g.buddy.hatched) return@act listOf(GameEvent.Say("*the egg soaks up the energy of ${food.name}* (−2 min)", Anim.SPARKLE))
                 warm + feed(food, now)
             } else feed(food, now)
         }
+        // Pin the scan on the map at our exact spot when it actually counted (an Ate event came back).
+        if (events.any { it is GameEvent.Ate }) mapScan(food)
+        return events
+    }
+
+    /** Pin a counted scan on the on-device map at the current GPS fix. */
+    private fun mapScan(food: com.realcak3d.scanimal.core.Food) {
+        if (!repo.data.settings.mapTrail) return
+        val loc = lastLoc ?: return
+        if (System.currentTimeMillis() - loc.time > 60_000) return
+        repo.engine.mapDiscovery(loc.latitude, loc.longitude, "scan", food.name, loc.time)
     }
 
     /** Friend link codes and message postcards are handled instead of eaten. Returns null for normal codes. */

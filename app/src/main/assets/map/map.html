@@ -17,7 +17,7 @@
     color:#efffe8;padding:5px 9px;font-size:12px;font-weight:800;white-space:nowrap}
   .dock button.active{background:linear-gradient(135deg,#d9ffc6,#9ce36c);color:#071109;border-color:rgba(255,255,255,.48)}
   .pin{width:14px;height:14px;border-radius:50%;border:2px solid #071109;box-shadow:0 0 10px rgba(0,0,0,.5)}
-  .pin.wifi{background:#9ce36c}.pin.bt{background:#4bd2ff}.pin.cell{background:#b388ff}.pin.other{background:#ffd54f}
+  .pin.wifi{background:#9ce36c}.pin.bt{background:#4bd2ff}.pin.cell{background:#b388ff}.pin.scan{background:#ff8f6f}.pin.other{background:#ffd54f}
   .me{width:16px;height:16px;border-radius:50%;background:#4bd2ff;border:3px solid #fff;box-shadow:0 0 0 6px rgba(75,210,255,.3)}
   .att{position:absolute;right:4px;bottom:2px;z-index:540;font-size:9px;color:#8fae8f;background:rgba(5,12,8,.5);padding:1px 4px;border-radius:6px}
 </style>
@@ -56,7 +56,7 @@ function icon(kind){return L.divIcon({className:'',html:'<div class="pin '+kind+
 window.sc = {
   setPins:function(json){
     var arr=JSON.parse(json); pins.clearLayers(); var pts=[];
-    arr.forEach(function(p){ var k=(p.kind==='bt'||p.kind==='ble')?'bt':(p.kind==='cell'?'cell':(p.kind==='wifi'?'wifi':'other'));
+    arr.forEach(function(p){ var k=(p.kind==='bt'||p.kind==='ble')?'bt':(p.kind==='cell'?'cell':(p.kind==='wifi'?'wifi':(p.kind==='scan'?'scan':'other')));
       L.marker([p.lat,p.lon],{icon:icon(k)}).addTo(pins); pts.push([p.lat,p.lon]); });
     if(pts.length){ try{ map.fitBounds(L.latLngBounds(pts).pad(0.3)); }catch(e){} }
   },
