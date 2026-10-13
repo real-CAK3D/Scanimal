@@ -105,8 +105,13 @@ fun BuddyView(
         walking -> "walk"
         else -> "idle"
     }
+    // Load this action's frames; if a species has animation at all, fall back to its idle frames for
+    // actions without their own set, so it keeps the animated look instead of popping to the still render.
     val frames: List<ImageBitmap> = if (Pal.spritesOn && look.stage != Stage.EGG && look.species != Species.BLOB)
-        remember(look.species, look.stage, action) { SpriteStore.frames(ctx, look.species, look.stage, action) } else emptyList()
+        remember(look.species, look.stage, action) {
+            SpriteStore.frames(ctx, look.species, look.stage, action)
+                .ifEmpty { if (action != "idle") SpriteStore.frames(ctx, look.species, look.stage, "idle") else emptyList() }
+        } else emptyList()
 
     Canvas(
         if (onTap != null) modifier.pointerInput(Unit) { detectTapGestures { tap?.invoke(it) } } else modifier
@@ -221,9 +226,10 @@ private fun DrawScope.drawBuddy(
     // Makes even a single-image sprite read as a walking character instead of a sliding sticker.
     if (walking && anim == Anim.NONE && !look.asleep && !underwater) {
         val wt = t * 8f
-        bob = -abs(sin(wt)) * 3.6f * u
-        tilt = sin(wt * 0.5f) * 3.5f
-        val push = sin(wt) * 0.05f
+        val amp = if (frames.isNotEmpty()) 0.3f else 1f   // real frames carry the gait; just a touch of bob
+        bob = -abs(sin(wt)) * 3.6f * u * amp
+        tilt = sin(wt * 0.5f) * 3.5f * amp
+        val push = sin(wt) * 0.05f * amp
         squashX = 1f + push; squashY = 1f - push
     }
 
