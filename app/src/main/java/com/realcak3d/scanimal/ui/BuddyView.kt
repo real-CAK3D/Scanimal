@@ -648,3 +648,58 @@ private fun DrawScope.drawAccessory(id: String?, cx: Float, top: Float, bw: Floa
 private fun DrawScope.drawRoundRectCompat(topLeft: Offset, size: Size, color: Color) {
     drawRoundRect(color, topLeft, size, androidx.compose.ui.geometry.CornerRadius(size.minDimension * 0.3f))
 }
+
+private class BubbleCol(val start: Long, val dur: Long, val xFrac: Float, val scaleFrac: Float, val wobbleDp: Float, val alpha: Float)
+
+/**
+ * Ambient rising bubble columns for underwater (fish-home) screens. Draw this BETWEEN the
+ * background and the buddy. Spawns at most 2 columns at a time, every 6-15 s, each rising from
+ * below the floor to off the top over 5-8 s with a gentle sine wobble and fade in/out.
+ */
+@Composable
+fun UnderwaterBubbles(modifier: Modifier = Modifier) {
+    val ctx = LocalContext.current
+    val img: ImageBitmap? = if (Pal.spritesOn) remember { SpriteStore.fx(ctx, "fx_bubbles") } else null
+    if (img == null) return
+    val cols = remember { ArrayList<BubbleCol>() }
+    var frame by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(Unit) {
+        var nextSpawn = 0L
+        while (true) {
+            androidx.compose.runtime.withFrameMillis { t ->
+                frame = t
+                if (t >= nextSpawn && cols.size < 2) {
+                    val leftThird = Random.nextBoolean()
+                    cols.add(BubbleCol(
+                        start = t,
+                        dur = 5000L + Random.nextLong(3000L),
+                        xFrac = if (leftThird) 0.08f + Random.nextFloat() * 0.25f else 0.67f + Random.nextFloat() * 0.25f,
+                        scaleFrac = 0.35f + Random.nextFloat() * 0.25f,
+                        wobbleDp = 8f + Random.nextFloat() * 4f,
+                        alpha = 0.70f + Random.nextFloat() * 0.15f,
+                    ))
+                    nextSpawn = t + 6000L + Random.nextLong(9000L)
+                }
+                cols.removeAll { t - it.start > it.dur }
+            }
+        }
+    }
+    Canvas(modifier) {
+        val f = frame
+        val iw = img.width.toFloat(); val ih = img.height.toFloat()
+        for (c in cols.toList()) {
+            val prog = ((f - c.start).toFloat() / c.dur).coerceIn(0f, 1f)
+            val h = size.height * c.scaleFrac
+            val w = h * (iw / ih)
+            val yCenter = (size.height + h / 2f) - prog * (size.height + h)   // below floor -> off top
+            val x = c.xFrac * size.width + sin(prog * PI.toFloat() * 3f) * c.wobbleDp * density
+            val a = c.alpha * when {
+                prog < 0.10f -> prog / 0.10f
+                prog > 0.85f -> (1f - prog) / 0.15f
+                else -> 1f
+            }
+            drawImage(img, dstOffset = IntOffset((x - w / 2f).toInt(), (yCenter - h / 2f).toInt()),
+                dstSize = IntSize(w.toInt().coerceAtLeast(1), h.toInt().coerceAtLeast(1)), alpha = a.coerceIn(0f, 1f))
+        }
+    }
+}

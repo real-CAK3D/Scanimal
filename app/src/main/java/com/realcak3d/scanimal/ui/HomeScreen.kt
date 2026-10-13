@@ -106,6 +106,7 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
         // Stage + speech
         Box(Modifier.fillMaxWidth().height(330.dp)) {
             RoomBackdrop(Modifier.fillMaxSize(), night = repo.engine.isNight(now), asleep = b.asleep, species = b.species, hatched = b.hatched, toy = g.toy, toyX = g.toyX)
+            if (b.hatched && b.species == com.realcak3d.scanimal.core.Species.FISH) UnderwaterBubbles(Modifier.fillMaxSize())
             val antenna = ((wifi.size + bt.size) / 25f).coerceIn(0f, 1f)
             val physics = remember { BuddyPhysics() }
             val bodyNow by rememberUpdatedState(body)
