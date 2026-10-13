@@ -50,36 +50,38 @@ Later stages all share walk + idle + sit/jump/turn, plus two age-appropriate sig
   → the single `<species>_<stage>.webp` still + procedural motion → built-in vector art (Blip).
 - Facing left mirrors the art horizontally in code, so only draw facing **right**.
 
-## The generation prompt (reusable — swap the reference image + species name)
+## The generation prompt (universal — just attach the photo)
 
-Attach the species' **life-cycle reference image** (the one that shows the 5 ages of the creature:
-baby, child, teen, adult, elder). Then run this prompt once per life stage, changing `<STAGE>` and the
-row list to match the table above. Keep the character identity, colors and markings locked to the
-reference so every stage reads as the same individual growing up.
+**Attach the creature's life-cycle photo** (the one showing its 5 ages: baby, child, teen, adult, elder).
+The prompt reads the creature from the photo, so it's the **same prompt for every species** — you only
+change the one **STAGE** word and paste that stage's 5 rows. Run it once per stage (5 runs per species).
 
-> Generate a **2D game animation sprite sheet** for the **<STAGE> <SPECIES>** shown in the attached
-> life-cycle reference (use the <STAGE> version of this exact character — same colors, markings and
-> proportions). Output a single transparent-background image laid out as a **strict 6-column by 5-row
-> grid of equal square cells**, evenly spaced, no margins, no text, no grid lines, no drop shadow.
-> In every cell the creature is the **same size**, **centered horizontally with its feet resting on the
-> bottom edge of the cell**, drawn in a consistent 3/4 side view facing **right**, clean cel-shaded
-> semi-realistic style matching the reference.
-> Each ROW is one action animated left→right; fill only the stated number of frames, leave the rest of
-> the row transparent:
-> - Row 1 — <ACTION 1> (<N> frames)
-> - Row 2 — <ACTION 2> (<N> frames)
-> - Row 3 — <ACTION 3> (<N> frames)
-> - Row 4 — <ACTION 4> (<N> frames)
-> - Row 5 — <ACTION 5> (<N> frames)
-> The frames in a row must be a smooth, loopable cycle of that one action with the body staying
-> centered and the feet on the baseline so it never jitters. Transparent PNG/WebP, square cells.
+> Using this photo of the creature's life stages, make a **2D game animation sprite sheet** for the
+> **ADULT** version of the creature shown in the photo. Match its exact colors, markings and
+> proportions — do not invent a different creature. Output a single transparent-background image as a
+> **strict 6-column by 5-row grid of equal square cells**, evenly spaced, no margins, no text, no grid
+> lines, no drop shadow. In every cell the creature is the **same size**, **centered horizontally with
+> its feet on the bottom edge of the cell**, in a consistent 3/4 side view **facing right**, clean
+> cel-shaded semi-realistic style matching the photo. Each ROW is one action animated left→right; fill
+> only the stated number of frames and leave the rest of that row transparent:
+> - Row 1 — idle: gentle breathe + blink (4 frames)
+> - Row 2 — walk cycle (6 frames)
+> - Row 3 — jump (5 frames)
+> - Row 4 — a signature "grab/attack" move that fits this creature (6 frames)
+> - Row 5 — a second signature move that fits this creature (6 frames)
+> Each row must be a smooth, loopable cycle of that one action, body centered and feet on the baseline so
+> it never jitters. Transparent WebP/PNG, square cells.
 
-### Chameleon, filled in (the 5 runs to do now)
+Swap the **STAGE** word and the 5 rows for the stage you're making (rows per stage, in order):
 
-- **baby**: Row1 cry (4) · Row2 crawl (6) · Row3 sit up (4) · Row4 wobble to standing (4) · Row5 first wobbly steps / walk (6)
-- **child**: Row1 idle breathe+blink (4) · Row2 walk (6) · Row3 hop/jump (5) · Row4 sit (4) · Row5 playful tail-curl / pounce (6)
-- **teen**: Row1 idle (4) · Row2 walk (6) · Row3 turn around (5) · Row4 climb a branch (6) · Row5 show-off color flash + eye swivel (6)
-- **adult**: Row1 idle (4) · Row2 walk (6) · Row3 jump (5) · Row4 tongue-snap catch (6) · Row5 slow color-shift (6)
-- **elder**: Row1 idle, slightly hunched (4) · Row2 slow walk with a little cane (6) · Row3 sit/rest (4) · Row4 stretch (6) · Row5 big yawn (5)
+- **BABY** — Row1 cry (4) · Row2 crawl (6) · Row3 sit up (4) · Row4 wobble up to standing (4) · Row5 first wobbly steps / walk (6)
+- **CHILD** — Row1 idle breathe+blink (4) · Row2 walk (6) · Row3 hop/jump (5) · Row4 sit (4) · Row5 playful move / pounce (6)
+- **TEEN** — Row1 idle (4) · Row2 walk (6) · Row3 turn around (5) · Row4 climb (6) · Row5 show-off move (6)
+- **ADULT** — Row1 idle (4) · Row2 walk (6) · Row3 jump (5) · Row4 signature grab/attack (6) · Row5 second signature move (6)
+- **ELDER** — Row1 idle, slightly hunched (4) · Row2 slow walk (6) · Row3 sit / rest (4) · Row4 stretch (6) · Row5 big yawn (5)
 
-Deliver as `chameleon_baby.webp` … `chameleon_elder.webp` in `app/src/main/assets/sprites/anim/`.
+Keep Row 1 = idle and Row 2 = walk exactly as stated for every stage (the app relies on those two rows).
+Rows 3–5 just need to read as that creature; the exact move is up to the art.
+
+Save the five outputs named `<species>_baby.webp` … `<species>_elder.webp` in
+`app/src/main/assets/sprites/anim/` (e.g. `chameleon_adult.webp`). That's it — the app does the rest.
