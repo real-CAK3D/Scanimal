@@ -35,6 +35,8 @@ class SensorHub(ctx: Context, val repo: GameRepository) {
     private var lastAlt = 0L
     private var lastSpeed = 0f
     private var lastLoc: Location? = null
+    /** The latest GPS fix if it's recent enough to pin by (null otherwise). */
+    fun currentFix(): Location? = lastLoc?.takeIf { System.currentTimeMillis() - it.time < 60_000 }
     private var stepWindow = ArrayDeque<Long>()   // recent step event times, for cadence
     private val mappedIds = HashSet<String>()
     private val handler = Handler(Looper.getMainLooper())
@@ -196,7 +198,7 @@ object Feeder {
         return ScanInput(raw, format)
     }
 
-    fun feed(repo: GameRepository, input: ScanInput): List<GameEvent> {
+    fun feed(repo: GameRepository, input: ScanInput, loc: Location? = null): List<GameEvent> {
         val food = FoodFactory.fromScan(input)
         val events = repo.act { now ->
             if (!g.buddy.hatched) {
@@ -206,16 +208,10 @@ object Feeder {
             } else feed(food, now)
         }
         // Pin the scan on the map at our exact spot when it actually counted (an Ate event came back).
-        if (events.any { it is GameEvent.Ate }) mapScan(food)
+        if (loc != null && repo.data.settings.mapTrail && events.any { it is GameEvent.Ate }) {
+            repo.engine.mapDiscovery(loc.latitude, loc.longitude, "scan", food.name, loc.time)
+        }
         return events
-    }
-
-    /** Pin a counted scan on the on-device map at the current GPS fix. */
-    private fun mapScan(food: com.realcak3d.scanimal.core.Food) {
-        if (!repo.data.settings.mapTrail) return
-        val loc = lastLoc ?: return
-        if (System.currentTimeMillis() - loc.time > 60_000) return
-        repo.engine.mapDiscovery(loc.latitude, loc.longitude, "scan", food.name, loc.time)
     }
 
     /** Friend link codes and message postcards are handled instead of eaten. Returns null for normal codes. */

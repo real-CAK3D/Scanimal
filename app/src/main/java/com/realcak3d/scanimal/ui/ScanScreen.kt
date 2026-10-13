@@ -157,7 +157,7 @@ fun ScanScreen(repo: GameRepository, hub: SensorHub, hasNfc: Boolean) {
             Spacer(Modifier.height(10.dp))
             Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 BigButton(if (g.buddy.hatched) "🍽️  Feed ${g.buddy.name}" else "🔥  Warm the egg", Pal.mint, Modifier.weight(1f)) {
-                    val ev = Feeder.feed(repo, p.input)
+                    val ev = Feeder.feed(repo, p.input, hub.currentFix())
                     val said = ev.filterIsInstance<GameEvent.Say>().lastOrNull()?.text
                     result = said
                     pending = null
