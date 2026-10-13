@@ -59,6 +59,7 @@ fun GameData.look(now: Long) = BuddyLook(
     asleep = buddy.asleep, sick = buddy.sick, poops = buddy.poops, dirty = buddy.stats.hygiene < 30,
     happiness = buddy.stats.happiness, weight = buddy.weight, tantrum = buddy.tantrum, seed = buddy.seed, dead = buddy.dead,
     species = buddy.species, outfit = buddy.outfit, eggProgress = buddy.eggProgress(now),
+    babyProgress = (buddy.ageHours(now) / 24.0).toFloat().coerceIn(0f, 1f),
 )
 
 fun com.realcak3d.scanimal.core.Friend.look(now: Long) = BuddyLook(

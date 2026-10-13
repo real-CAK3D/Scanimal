@@ -59,6 +59,7 @@ data class BuddyLook(
     val species: Species = Species.BLOB,
     val outfit: String? = null,
     val eggProgress: Float = 0f,
+    val babyProgress: Float = 1f,   // 0..1 through the baby stage, drives the grow-up animation
 )
 
 private const val ANIM_MS = 1800L
@@ -97,14 +98,8 @@ fun BuddyView(
         remember(look.species, look.stage, variant) { SpriteStore.image(ctx, look.species, look.stage, variant) } else null
     val bubbleImg: ImageBitmap? = if (Pal.spritesOn && underwater)
         remember { SpriteStore.fx(ctx, "fx_bubble") } else null
-    // Pick an action and load its frame sequence (if the art pack ships one); empty -> single-image fallback.
-    val action = when {
-        look.asleep -> "sleep"
-        anim == Anim.EAT -> "eat"
-        anim == Anim.HAPPY || anim == Anim.LEVEL_UP || anim == Anim.DANCE || anim == Anim.LOVE || anim == Anim.HATCH -> "happy"
-        walking -> "walk"
-        else -> "idle"
-    }
+    // Pick an action and load its frame sequence (sheet row or loose frames); empty -> single-image fallback.
+    val action = AnimSheets.chooseAction(look.stage, walking, anim, look.asleep, look.babyProgress)
     // Load this action's frames; if a species has animation at all, fall back to its idle frames for
     // actions without their own set, so it keeps the animated look instead of popping to the still render.
     val frames: List<ImageBitmap> = if (Pal.spritesOn && look.stage != Stage.EGG && look.species != Species.BLOB)
