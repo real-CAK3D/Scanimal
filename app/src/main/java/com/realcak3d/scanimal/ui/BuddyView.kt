@@ -78,7 +78,8 @@ fun BuddyView(
     eggCracks: Int = 0,
     variant: String = "",
     underwater: Boolean = false,
-    onTap: (Offset) -> Unit = {},
+    walking: Boolean = false,
+    onTap: ((Offset) -> Unit)? = null,
 ) {
     var frame by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
@@ -90,13 +91,15 @@ fun BuddyView(
     val blink = remember { BlinkClock() }
     val textPaint = remember { Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.DEFAULT_BOLD; textAlign = Paint.Align.CENTER } }
     val ctx = LocalContext.current
-    val sprite: ImageBitmap? = if (Pal.spritesOn && look.stage != Stage.EGG)
+    // The Blip is rendered with the animated vector art (walk cycle, arms, expressions) rather than a
+    // static sprite, so it is genuinely animated. Other species use the bundled sprite art when present.
+    val sprite: ImageBitmap? = if (Pal.spritesOn && look.stage != Stage.EGG && look.species != Species.BLOB)
         remember(look.species, look.stage, variant) { SpriteStore.image(ctx, look.species, look.stage, variant) } else null
     val bubbleImg: ImageBitmap? = if (Pal.spritesOn && underwater)
         remember { SpriteStore.fx(ctx, "fx_bubble") } else null
 
     Canvas(
-        modifier.pointerInput(Unit) { detectTapGestures { tap(it) } }
+        if (onTap != null) modifier.pointerInput(Unit) { detectTapGestures { tap?.invoke(it) } } else modifier
     ) {
         val now = frame
         val t = (now % 600_000L) / 1000f
@@ -106,7 +109,7 @@ fun BuddyView(
         if (look.stage == Stage.EGG) {
             drawEgg(look, t, maxOf(eggCracks, (look.eggProgress * 6).toInt()), active, p)
         } else {
-            drawBuddy(look, t, active, p, lookAt, blink.closedAmount(now), antennaGlow, textPaint, sprite, underwater, bubbleImg)
+            drawBuddy(look, t, active, p, lookAt, blink.closedAmount(now), antennaGlow, textPaint, sprite, underwater, bubbleImg, walking)
         }
     }
 }
@@ -162,7 +165,7 @@ private fun DrawScope.drawEgg(look: BuddyLook, t: Float, cracks: Int, anim: Anim
 }
 
 private fun DrawScope.drawBuddy(
-    look: BuddyLook, t: Float, anim: Anim, p: Float, lookAt: Offset, blink: Float, antennaGlow: Float, textPaint: Paint, sprite: ImageBitmap? = null, underwater: Boolean = false, bubble: ImageBitmap? = null,
+    look: BuddyLook, t: Float, anim: Anim, p: Float, lookAt: Offset, blink: Float, antennaGlow: Float, textPaint: Paint, sprite: ImageBitmap? = null, underwater: Boolean = false, bubble: ImageBitmap? = null, walking: Boolean = false,
 ) {
     val u = min(size.width, size.height) / 100f
     val s = look.stage.scale
@@ -232,7 +235,8 @@ private fun DrawScope.drawBuddy(
             drawImage(sprite, dstOffset = IntOffset(l.toInt(), topY.toInt()), dstSize = IntSize(w.toInt().coerceAtLeast(1), h.toInt().coerceAtLeast(1)),
                 alpha = if (look.dead) 0.5f else 1f)
         } else {
-        // Feet
+        // Feet. A real walk cycle when strolling (legs stride, knees lift); a dance shuffle otherwise.
+        val walkingNow = walking && anim == Anim.NONE && !look.asleep
         val step = if (anim == Anim.DANCE) sin(t * 9f) * 3 * u else 0f
         val spec = SpecCtx(cx, cy, bw, bh, u, s, t, base, light, dark, hue, anim, p, look)
         drawSpeciesBack(spec)
@@ -243,6 +247,18 @@ private fun DrawScope.drawBuddy(
                 val fx = cx + side * bw * 0.15f
                 drawLine(Color(0xFFFFA726), Offset(fx, cy + bh * 0.42f), Offset(fx, cy + bh * 0.56f), 1.4f * u * s, StrokeCap.Round)
                 drawLine(Color(0xFFFFA726), Offset(fx, cy + bh * 0.56f), Offset(fx + side * 3 * u * s, cy + bh * 0.58f), 1.2f * u * s, StrokeCap.Round)
+            }
+            Species.BLOB -> for (side in listOf(-1, 1)) {
+                // Two striding legs with a knee; swing forward/back and lift on each step.
+                val ph = t * 9f + if (side < 0) 0f else PI.toFloat()
+                val swing = if (walkingNow) sin(ph) * bw * 0.17f else 0f
+                val lift = if (walkingNow) maxOf(0f, sin(ph)) * bh * 0.12f else 0f
+                val hip = Offset(cx + side * bw * 0.15f, cy + bh * 0.30f)
+                val foot = Offset(hip.x + swing, cy + bh * 0.52f - lift)
+                val knee = Offset((hip.x + foot.x) / 2f + swing * 0.2f, (hip.y + foot.y) / 2f)
+                val leg = Path().apply { moveTo(hip.x, hip.y); quadraticTo(knee.x, knee.y, foot.x, foot.y) }
+                drawPath(leg, dark, style = Stroke(3.4f * u * s, cap = StrokeCap.Round))
+                drawOval(dark, Offset(foot.x - bw * 0.11f + swing * 0.3f, foot.y - bh * 0.02f), Size(bw * 0.22f, bh * 0.1f))
             }
             else -> {
                 val feet = if (sp == Species.HUMAN) Color(0xFF3E2723) else dark
@@ -267,11 +283,11 @@ private fun DrawScope.drawBuddy(
         }
 
         // Arms
-        val wave = when (anim) {
+        val wave = (when (anim) {
             Anim.HAPPY, Anim.LEVEL_UP, Anim.DANCE, Anim.LOVE, Anim.HATCH -> sin(t * 14f) * 35f - 40f
             Anim.SAD -> 25f
             else -> sin(t * 2.2f) * 6f
-        }
+        }) + if (walking && anim == Anim.NONE && !look.asleep) sin(t * 9f + PI.toFloat()) * 16f else 0f
         if (sp == Species.BIRD) {
             val flap = if (wave < -20f) sin(t * 18f) * 30f else sin(t * 2f) * 5f
             for (side in listOf(-1, 1)) rotate(side * (20f + flap), Offset(cx + side * bw * 0.42f, cy)) {

@@ -118,6 +118,7 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
             var squash by remember { mutableFloatStateOf(0f) }
             var wanderX by remember { mutableFloatStateOf(0f) }
             var facing by remember { mutableFloatStateOf(1f) }
+            var strolling by remember { mutableStateOf(false) }
             val toyNow by rememberUpdatedState(g.toy)
             val toyXNow by rememberUpdatedState(g.toyX)
             LaunchedEffect(physicsOn) {
@@ -130,7 +131,7 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
                         px = physics.x; py = physics.y; spin = physics.spin; squash = physics.squash
                         // Wandering: stroll to a target, pause, pick a new one; drift toward the toy sometimes.
                         val still = kotlin.math.abs(physics.x) < 0.15f && physics.y < 0.05f
-                        if (asleepNow || !still) { /* hold position */ }
+                        if (asleepNow || !still) { strolling = false /* hold position */ }
                         else {
                             if (t >= nextWander) {
                                 val tx = toyXNow
@@ -139,6 +140,7 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
                                 nextWander = t + 2500L + kotlin.random.Random.nextLong(5000L)
                             }
                             val d = target - wanderX
+                            strolling = kotlin.math.abs(d) > 0.02f
                             if (kotlin.math.abs(d) > 0.01f) { facing = if (d > 0) 1f else -1f; wanderX += d.coerceIn(-1f, 1f) * (dt / 1000f) * 0.6f }
                             // Reached the toy? poke it (throttled; engine throttles too).
                             val toyPos = (toyXNow - 0.5f) * 1.7f
@@ -150,6 +152,7 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
             BuddyView(
                 look = g.look(now), anim = speech.anim, animAt = speech.at,
                 underwater = b.species == com.realcak3d.scanimal.core.Species.FISH,
+                walking = strolling,
                 modifier = Modifier.fillMaxSize().graphicsLayer {
                     translationX = (px + wanderX) * size.width * 0.30f
                     translationY = -py * size.height * 0.45f

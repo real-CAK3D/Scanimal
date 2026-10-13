@@ -240,6 +240,16 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
         if (!b.hatched) return ev
         if (b.asleep) { ev += say(Topic.ASLEEP_TAP, now, Anim.SLEEP); return ev }
         val lastEaten = g.codeLastEaten[food.key]
+        // Anti-cheat: the same code within the cooldown gives nothing — no farming the same item for levels.
+        if (food.family != FoodFamily.PANTRY && lastEaten != null && now - lastEaten < SCAN_COOLDOWN_MS) {
+            val mins = ((SCAN_COOLDOWN_MS - (now - lastEaten)) / 60_000L + 1).toInt()
+            ev += GameEvent.Say(listOf(
+                "We just had ${food.name}. Try something else for ~$mins min.",
+                "Already scanned that one — no double-dipping. (~$mins min)",
+                "Nice try, that ${food.name} is on cooldown for ~$mins min.",
+            ).random(rnd), Anim.ANGRY)
+            return ev
+        }
         val todayCount = if (lastEaten != null && now - lastEaten < 20 * 3_600_000L) (g.codeTimesEaten[food.key] ?: 0) else 0
         if (food.family != FoodFamily.PANTRY && todayCount >= 2) { ev += say(Topic.REFUSE_FOOD, now, Anim.ANGRY, food = food.name); return ev }
         if (s.fullness >= 96) { ev += say(Topic.FULL, now); return ev }
@@ -1260,6 +1270,7 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
 
     companion object {
         const val DEFAULT_INCUBATION = 15 * 60_000L
+        const val SCAN_COOLDOWN_MS = 10 * 60_000L   // same code can't be re-fed for 10 min
     }
 
     fun isNight(now: Long): Boolean {

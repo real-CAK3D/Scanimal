@@ -87,9 +87,11 @@ object FoodFactory {
     )
 
     private val bases = mapOf(
-        FoodFamily.GROCERY to listOf("Apple", "Bagel", "Burrito", "Cereal", "Cheese Wedge", "Cookie", "Dumpling",
-            "Granola Bar", "Hot Dog", "Noodles", "Pancake", "Pickle", "Pizza Slice", "Pretzel", "Rice Ball",
-            "Sandwich", "Taco", "Yogurt", "Banana", "Carrot", "Muffin", "Soup Can", "Popcorn", "Donut"),
+        // Invented, clearly barcode-conjured treats — not real foods, so an unidentified scan never
+        // masquerades as "this item IS a <real food>".
+        FoodFamily.GROCERY to listOf("Barcode Bonbon", "Checkout Churro", "Receipt Ravioli", "Scanner Scone",
+            "UPC Cupcake", "Aisle Tart", "Trolley Truffle", "Register Roll", "Coupon Cookie", "Grocery Gummy",
+            "Shelf Sorbet", "Cart Crumble", "Price-Tag Pretzel", "Loyalty Loaf", "Checkout Cakepop", "SKU Scone"),
         FoodFamily.DATA to listOf("Pixel Pie", "Byte Biscuit", "Bit Brownie", "Kilobyte Cake", "Cache Cookie",
             "Packet Pudding", "Bitmap Bun", "Checksum Churro", "Syntax Sushi", "Word Salad", "Glyph Gumbo"),
         FoodFamily.WEB to listOf("Web Waffle", "Link Linguine", "Cookie (the browser kind)", "Hyperlink Hotcake",
