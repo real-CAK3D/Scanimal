@@ -62,7 +62,7 @@ fun IntroScreen(repo: GameRepository, ownerDone: Boolean) {
     var food by rememberSaveable { mutableStateOf(repo.data.owner.favoriteFood) }
     var hobby by rememberSaveable { mutableStateOf(repo.data.owner.hobby) }
     var pet by rememberSaveable { mutableStateOf(repo.data.owner.pet) }
-    var species by remember { mutableStateOf(Species.BLOB) }
+    var species by remember { mutableStateOf(Species.CHAMELEON) }
     var name by rememberSaveable { mutableStateOf("") }
     var sex by remember { mutableStateOf(Sex.MYSTERY) }
     Column(
@@ -122,7 +122,7 @@ fun IntroScreen(repo: GameRepository, ownerDone: Boolean) {
                 Text("Choose a species", color = Pal.text, fontSize = 26.sp, fontWeight = FontWeight.Black)
                 Text("Every egg also rolls a random pattern and personality.", color = Pal.sub, fontSize = 13.sp)
                 Spacer(Modifier.height(12.dp))
-                Species.entries.chunked(3).forEach { row ->
+                listOf(Species.CHAMELEON).chunked(3).forEach { row ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         row.forEach { sp ->
                             val sel = sp == species

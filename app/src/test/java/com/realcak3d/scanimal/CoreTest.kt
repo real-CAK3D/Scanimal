@@ -231,7 +231,7 @@ class FeatureTest {
         assertTrue(e.eggMinutesLeft(t0 + 1000) in 9..10)
         val ev = e.tick(t0 + 16 * 60_000L)
         assertTrue(e.g.buddy.hatched, "auto-hatches when time is up")
-        assertEquals(Species.DINO, e.g.buddy.species)
+        assertEquals(Species.CHAMELEON, e.g.buddy.species, "chameleon-only build forces the species")
         assertTrue(ev.isNotEmpty())
         assertTrue(e.g.myId.length == 8)
     }
@@ -272,7 +272,7 @@ class FeatureTest {
         val code = Codec.linkCode(e.myCard())
         assertTrue(code.startsWith("SCANIMAL1:"))
         val parsed = Codec.parseLink("hey add me $code thanks")!!
-        assertEquals("Rex", parsed.name); assertEquals(Species.DINO, parsed.species); assertEquals("Andy", parsed.owner)
+        assertEquals("Rex", parsed.name); assertEquals(Species.CHAMELEON, parsed.species); assertEquals("Andy", parsed.owner)
         assertTrue(e.addFriend(parsed, now, true).any { it is GameEvent.Say }, "own card is refused politely")
         assertEquals(0, e.g.friends.size)
         val other = Friend("ZZZZ1111", "Mochi", "Sam", Species.CAT, Sex.FEMALE, 30f, Pattern.SPOTS, 4, "bow", 0)
@@ -359,7 +359,7 @@ class EnvTest {
         assertTrue("biome:HOTSPOT" in e.g.stickers)
         assertTrue("motion:VEHICLE" in e.g.stickers)
         assertTrue(e.g.stickers.any { it.startsWith("wx:") })
-        assertTrue("sp:DINO" in e.g.stickers, "species sticker on hatch")
+        assertTrue("sp:CHAMELEON" in e.g.stickers, "species sticker on hatch")
     }
 
     @Test fun questsRollAndClaim() {

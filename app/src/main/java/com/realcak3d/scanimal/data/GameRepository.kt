@@ -39,6 +39,9 @@ class GameRepository private constructor(context: Context) {
     private fun load(): GameData {
         val raw = prefs.getString(KEY, null)
         val g = raw?.let { runCatching { Codec.decode(it) }.getOrNull() } ?: GameData()
+        // Chameleon-only build: every buddy renders as a chameleon (other species may return later).
+        g.buddy.species = com.realcak3d.scanimal.core.Species.CHAMELEON
+        g.friends.forEach { it.species = com.realcak3d.scanimal.core.Species.CHAMELEON }
         if (g.buddy.eggLaidAt == 0L && !g.buddy.hatched) Engine(g).newEgg(System.currentTimeMillis())
         return g
     }

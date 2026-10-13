@@ -64,7 +64,7 @@ fun GameData.look(now: Long) = BuddyLook(
 
 fun com.realcak3d.scanimal.core.Friend.look(now: Long) = BuddyLook(
     hue = hue, stage = when { level >= 25 -> Stage.ELDER; level >= 10 -> Stage.ADULT; level >= 5 -> Stage.TEEN; level >= 2 -> Stage.CHILD; else -> Stage.BABY },
-    pattern = pattern, sex = sex, accessory = accessory, species = species, seed = id.hashCode().toLong(),
+    pattern = pattern, sex = sex, accessory = accessory, species = com.realcak3d.scanimal.core.Species.CHAMELEON, seed = id.hashCode().toLong(),
 )
 
 @Composable

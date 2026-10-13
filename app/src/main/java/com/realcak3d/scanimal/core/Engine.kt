@@ -56,9 +56,9 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
         if (b.hatched) return emptyList()
         b.name = name.trim().take(16).ifBlank { "Blip" }
         b.sex = sex
-        b.species = species
+        b.species = Species.CHAMELEON   // chameleon-only build (ignore the picked species for now)
         val sr = Random(b.seed)
-        b.hue = (species.defaultHue + sr.nextInt(-25, 26) + 360f) % 360f
+        b.hue = (b.species.defaultHue + sr.nextInt(-25, 26) + 360f) % 360f
         b.eggLaidAt = now
         b.hatchReadyAt = now + incubationMs
         g.log(now, "🥚", "${b.name}'s ${species.label.lowercase()} egg is incubating.")
