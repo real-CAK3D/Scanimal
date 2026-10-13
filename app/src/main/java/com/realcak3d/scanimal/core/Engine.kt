@@ -239,6 +239,16 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
         val ev = mutableListOf<GameEvent>()
         if (!b.hatched) return ev
         if (b.asleep) { ev += say(Topic.ASLEEP_TAP, now, Anim.SLEEP); return ev }
+        // Global rate limit: at least a short gap between ANY two scans (kibble/pantry excepted).
+        if (food.family != FoodFamily.PANTRY && g.lastScanAt > 0L && now - g.lastScanAt < SCAN_MIN_GAP_MS) {
+            val secs = ((SCAN_MIN_GAP_MS - (now - g.lastScanAt)) / 1000L + 1).toInt()
+            ev += GameEvent.Say(listOf(
+                "Whoa, slow down — give me ${secs}s between scans.",
+                "One at a time! Wait ${secs}s before the next scan.",
+                "Still chewing — ${secs}s before the next one.",
+            ).random(rnd), Anim.NONE)
+            return ev
+        }
         val lastEaten = g.codeLastEaten[food.key]
         // Anti-cheat: the same code within the cooldown gives nothing — no farming the same item for levels.
         if (food.family != FoodFamily.PANTRY && lastEaten != null && now - lastEaten < SCAN_COOLDOWN_MS) {
@@ -269,6 +279,7 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
 
         g.codeLastEaten[food.key] = now
         g.codeTimesEaten[food.key] = todayCount + 1
+        if (food.family != FoodFamily.PANTRY) g.lastScanAt = now
         g.lastFoodName = food.name
         g.bump(C.FEEDS)
         if (food.family != FoodFamily.PANTRY) {
@@ -1271,6 +1282,7 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
     companion object {
         const val DEFAULT_INCUBATION = 15 * 60_000L
         const val SCAN_COOLDOWN_MS = 10 * 60_000L   // same code can't be re-fed for 10 min
+        const val SCAN_MIN_GAP_MS = 10_000L         // at least 10 s between any two scans
     }
 
     fun isNight(now: Long): Boolean {

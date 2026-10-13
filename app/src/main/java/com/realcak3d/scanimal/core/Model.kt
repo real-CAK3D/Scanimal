@@ -267,6 +267,8 @@ class GameData(
     val counters: MutableMap<String, Long> = mutableMapOf(),
     val codeLastEaten: MutableMap<String, Long> = mutableMapOf(),
     val codeTimesEaten: MutableMap<String, Int> = mutableMapOf(),
+    var lastScanAt: Long = 0L,   // global rate limit: min gap between any two scans
+
     val seenWifi: MutableSet<String> = mutableSetOf(),
     val seenBt: MutableSet<String> = mutableSetOf(),
     val friendNames: MutableList<String> = mutableListOf(),
