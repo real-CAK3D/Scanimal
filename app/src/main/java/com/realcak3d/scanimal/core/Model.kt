@@ -267,7 +267,7 @@ class GameData(
     val counters: MutableMap<String, Long> = mutableMapOf(),
     val codeLastEaten: MutableMap<String, Long> = mutableMapOf(),
     val codeTimesEaten: MutableMap<String, Int> = mutableMapOf(),
-    var lastScanAt: Long = 0L,   // global rate limit: min gap between any two scans
+    val lastScanByCat: MutableMap<String, Long> = mutableMapOf(),   // per-category min-gap timers (barcode/QR/NFC/... don't block each other)
 
     val seenWifi: MutableSet<String> = mutableSetOf(),
     val seenBt: MutableSet<String> = mutableSetOf(),
@@ -333,6 +333,7 @@ object C {
     const val RARE = "rare_foods"
     const val WIFI = "wifi_seen"
     const val WIFI_OPEN = "wifi_open"
+    const val WIFI_24 = "wifi_24"
     const val WIFI_5G = "wifi_5g"
     const val WIFI_6G = "wifi_6g"
     const val BT = "bt_seen"

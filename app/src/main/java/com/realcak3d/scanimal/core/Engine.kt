@@ -239,13 +239,16 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
         val ev = mutableListOf<GameEvent>()
         if (!b.hatched) return ev
         if (b.asleep) { ev += say(Topic.ASLEEP_TAP, now, Anim.SLEEP); return ev }
-        // Global rate limit: at least a short gap between ANY two scans (kibble/pantry excepted).
-        if (food.family != FoodFamily.PANTRY && g.lastScanAt > 0L && now - g.lastScanAt < SCAN_MIN_GAP_MS) {
-            val secs = ((SCAN_MIN_GAP_MS - (now - g.lastScanAt)) / 1000L + 1).toInt()
+        // Rate limit per scan category: at least a short gap between two scans of the SAME kind
+        // (barcode / QR / NFC / etc. don't block each other), kibble/pantry excepted.
+        val cat = food.family.name
+        val lastCat = g.lastScanByCat[cat]
+        if (food.family != FoodFamily.PANTRY && lastCat != null && now - lastCat < SCAN_MIN_GAP_MS) {
+            val secs = ((SCAN_MIN_GAP_MS - (now - lastCat)) / 1000L + 1).toInt()
             ev += GameEvent.Say(listOf(
-                "Whoa, slow down — give me ${secs}s between scans.",
-                "One at a time! Wait ${secs}s before the next scan.",
-                "Still chewing — ${secs}s before the next one.",
+                "Whoa, slow down — ${secs}s before the next ${food.family.label.lowercase()}. (Try a different kind of code!)",
+                "One ${food.family.label.lowercase()} at a time — wait ${secs}s, or scan something else.",
+                "Still chewing that — ${secs}s, or try a QR/NFC instead.",
             ).random(rnd), Anim.NONE)
             return ev
         }
@@ -279,7 +282,7 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
 
         g.codeLastEaten[food.key] = now
         g.codeTimesEaten[food.key] = todayCount + 1
-        if (food.family != FoodFamily.PANTRY) g.lastScanAt = now
+        if (food.family != FoodFamily.PANTRY) g.lastScanByCat[cat] = now
         g.lastFoodName = food.name
         g.bump(C.FEEDS)
         if (food.family != FoodFamily.PANTRY) {
@@ -520,23 +523,36 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
             return ev
         }
         ev += recordDevices(results, now)
-        var fresh = 0
+        var fresh = 0; var f24 = 0; var f5 = 0; var f6 = 0
         for (r in results) {
             if (g.seenWifi.add(r.id)) {
                 fresh++
                 g.bump(C.WIFI)
                 if (!r.secured) g.bump(C.WIFI_OPEN)
-                if (r.frequencyMhz in 4900..5899) g.bump(C.WIFI_5G)
-                if (r.frequencyMhz >= 5925) g.bump(C.WIFI_6G)
+                when (wifiBand(r.frequencyMhz)) {
+                    24 -> { g.bump(C.WIFI_24); f24++ }
+                    5 -> { g.bump(C.WIFI_5G); f5++ }
+                    6 -> { g.bump(C.WIFI_6G); f6++ }
+                }
             }
         }
         if (fresh > 0 && b.hatched) {
             s.happiness += min(8.0, fresh * 1.0)
             if (b.personality == Personality.CURIOUS) s.happiness += 2
             ev += gainXp(min(30, fresh * 2), now)
+            // Band perks differ: 2.4 GHz is hearty/long-range, 5 GHz is fast energy, 6 GHz is a rare treat.
+            if (f24 > 0) { s.fullness += min(10.0, f24 * 2.0); s.health += 1 }
+            if (f5 > 0) { s.energy += min(14.0, f5 * 3.0); ev += gainXp(min(10, f5 * 2), now) }
+            if (f6 > 0) { s.energy += 6; ev += gainXp(min(30, f6 * 10), now); grantCoins(f6 * 2, ev) }
             ev += say(Topic.WIFI_FOUND, now, Anim.SPARKLE, n = results.size)
+            if (f6 > 0) ev += GameEvent.Say("*6 GHz! Wi-Fi 6E/7 — the good stuff.* 🚀", Anim.SPARKLE)
             if (results.any { !it.secured } && rnd.nextInt(3) == 0) ev += say(Topic.WIFI_OPEN, now)
-            g.log(now, "📶", "Sniffed $fresh new Wi-Fi network${if (fresh == 1) "" else "s"} (${results.size} in range).")
+            val bands = listOfNotNull(
+                if (f24 > 0) "${f24}×2.4GHz" else null,
+                if (f5 > 0) "${f5}×5GHz" else null,
+                if (f6 > 0) "${f6}×6GHz" else null,
+            ).joinToString(", ")
+            g.log(now, "📶", "Sniffed $fresh new Wi-Fi network${if (fresh == 1) "" else "s"} (${results.size} in range)${if (bands.isNotBlank()) " — $bands" else ""}.")
         }
         // Strongest network = a little energy snack, once per hour.
         val strongest = results.maxByOrNull { it.rssi }
@@ -779,6 +795,12 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
             s.smarts += 2; s.happiness += 1; s.clampAll()
             if (alertable) ev += GameEvent.Say(line, Anim.SPARKLE)
             ev += gainXp(12, now)
+            // Rare spotter's bounty — finding surveillance/plate/LoRa nodes pays a few coins (once per find).
+            when (r.type) {
+                DeviceType.SURVEILLANCE, DeviceType.ALPR -> grantCoins(3, ev)
+                DeviceType.LORA -> grantCoins(5, ev)
+                else -> {}
+            }
         }
         g.log(now, r.type.icon, "Notable find: $name (${r.type.label}${if (r.vendor.isNotBlank()) ", ${r.vendor}" else ""}).")
         ev += checkAchievements(now)
@@ -1282,7 +1304,15 @@ class Engine(val g: GameData, private val rnd: Random = Random.Default) {
     companion object {
         const val DEFAULT_INCUBATION = 15 * 60_000L
         const val SCAN_COOLDOWN_MS = 10 * 60_000L   // same code can't be re-fed for 10 min
-        const val SCAN_MIN_GAP_MS = 10_000L         // at least 10 s between any two scans
+        const val SCAN_MIN_GAP_MS = 10_000L         // at least 10 s between two scans of the same kind
+
+        /** Wi-Fi band from a channel centre frequency in MHz: 24 (2.4 GHz), 5 (5 GHz), 6 (6 GHz), or 0. */
+        fun wifiBand(freqMhz: Int): Int = when (freqMhz) {
+            in 2400..2500 -> 24
+            in 4900..5895 -> 5
+            in 5925..7125 -> 6
+            else -> 0
+        }
     }
 
     fun isNight(now: Long): Boolean {

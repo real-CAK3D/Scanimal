@@ -40,7 +40,7 @@ object Codec {
         o.put("counters", obj(g.counters))
         o.put("codeLastEaten", obj(g.codeLastEaten))
         o.put("codeTimesEaten", obj(g.codeTimesEaten))
-        o.put("lastScanAt", g.lastScanAt)
+        o.put("lastScanByCat", obj(g.lastScanByCat))
         o.put("seenWifi", JSONArray(g.seenWifi.toList()))
         o.put("seenBt", JSONArray(g.seenBt.toList()))
         o.put("friendNames", JSONArray(g.friendNames))
@@ -126,7 +126,7 @@ object Codec {
         o.optJSONObject("counters")?.let { it.keys().forEach { k -> g.counters[k] = it.optLong(k) } }
         o.optJSONObject("codeLastEaten")?.let { it.keys().forEach { k -> g.codeLastEaten[k] = it.optLong(k) } }
         o.optJSONObject("codeTimesEaten")?.let { it.keys().forEach { k -> g.codeTimesEaten[k] = it.optInt(k) } }
-        g.lastScanAt = o.optLong("lastScanAt")
+        o.optJSONObject("lastScanByCat")?.let { it.keys().forEach { k -> g.lastScanByCat[k] = it.optLong(k) } }
         o.optJSONArray("seenWifi")?.let { a -> for (i in 0 until a.length()) g.seenWifi.add(a.getString(i)) }
         o.optJSONArray("seenBt")?.let { a -> for (i in 0 until a.length()) g.seenBt.add(a.getString(i)) }
         o.optJSONArray("friendNames")?.let { a -> for (i in 0 until a.length()) g.friendNames.add(a.getString(i)) }
