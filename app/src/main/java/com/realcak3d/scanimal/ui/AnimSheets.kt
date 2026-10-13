@@ -43,21 +43,33 @@ object AnimSheets {
     /** The baby grows up through its first day: cry -> crawl -> sit up -> stand -> walk. */
     private val babyMilestones = listOf("cry", "crawl", "situp", "stand", "walk")
 
+    private fun List<String>.firstPresent(vararg cands: String): String? = cands.firstOrNull { it in this }
+
     /**
-     * Pick the action name to play for the current state. [babyProgress] is 0..1 through the baby stage.
-     * Falls back to "idle" (or the first row) when a state has no matching action in this stage.
+     * The behavior state machine: pick the action name to play for the current situation, then map it to
+     * the best available row for this stage (falling back to "idle"). [babyProgress] is 0..1 through the
+     * baby stage; [bored] = idle a long time with nothing happening; [talking] = a speech bubble is up.
      */
-    fun chooseAction(stage: Stage, walking: Boolean, anim: Anim, asleep: Boolean, babyProgress: Float): String {
+    fun chooseAction(
+        stage: Stage, walking: Boolean, anim: Anim, asleep: Boolean, babyProgress: Float,
+        bored: Boolean = false, talking: Boolean = false,
+    ): String {
         val names = layout[stage]?.map { it.name } ?: return "idle"
         if (stage == Stage.BABY) {
             val idx = (babyProgress * babyMilestones.size).toInt().coerceIn(0, babyMilestones.size - 1)
             return if (walking && idx >= 4) "walk" else babyMilestones[idx]
         }
         val want = when {
-            asleep -> if ("sit" in names) "sit" else "idle"
+            asleep -> names.firstPresent("sleep", "sit", "idle") ?: "idle"
+            anim == Anim.EAT -> names.firstPresent("eat", "idle") ?: "idle"
             anim == Anim.HAPPY || anim == Anim.LEVEL_UP || anim == Anim.LOVE || anim == Anim.DANCE || anim == Anim.HATCH ->
-                listOf("jump", "play", "showoff").firstOrNull { it in names } ?: "idle"
+                names.firstPresent("jump", "play", "showoff") ?: "idle"
+            // Found a signal / curious → a little flourish (interested / scanning).
+            anim == Anim.SPARKLE || anim == Anim.CLEAN ->
+                names.firstPresent("tongue", "colorshift", "showoff", "climb", "play") ?: "idle"
             walking -> "walk"
+            // Nothing going on for a while → loiter with a distinct idle move.
+            bored && !talking -> names.firstPresent("sit", "yawn", "stretch", "colorshift", "showoff") ?: "idle"
             else -> "idle"
         }
         return if (want in names) want else "idle"

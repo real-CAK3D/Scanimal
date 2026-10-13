@@ -156,6 +156,7 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
                 look = g.look(now), anim = speech.anim, animAt = speech.at,
                 underwater = b.species == com.realcak3d.scanimal.core.Species.FISH,
                 walking = strolling,
+                talking = speech.text.isNotBlank(),
                 modifier = Modifier.fillMaxSize().graphicsLayer {
                     translationX = (px + wanderX) * size.width * 0.30f
                     translationY = -py * size.height * 0.45f

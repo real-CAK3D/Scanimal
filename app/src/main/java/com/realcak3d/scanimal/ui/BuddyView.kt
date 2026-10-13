@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -80,6 +81,7 @@ fun BuddyView(
     variant: String = "",
     underwater: Boolean = false,
     walking: Boolean = false,
+    talking: Boolean = false,
     onTap: ((Offset) -> Unit)? = null,
 ) {
     var frame by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -98,8 +100,15 @@ fun BuddyView(
         remember(look.species, look.stage, variant) { SpriteStore.image(ctx, look.species, look.stage, variant) } else null
     val bubbleImg: ImageBitmap? = if (Pal.spritesOn && underwater)
         remember { SpriteStore.fx(ctx, "fx_bubble") } else null
+    // "Bored" = idle a while with nothing happening, so it loiters instead of standing stiff.
+    var bored by remember { mutableStateOf(false) }
+    val idleNow = !walking && anim == Anim.NONE && !look.asleep && !talking
+    LaunchedEffect(idleNow, anim, walking, look.asleep, talking) {
+        bored = false
+        if (idleNow) { kotlinx.coroutines.delay(25_000L); bored = true }
+    }
     // Pick an action and load its frame sequence (sheet row or loose frames); empty -> single-image fallback.
-    val action = AnimSheets.chooseAction(look.stage, walking, anim, look.asleep, look.babyProgress)
+    val action = AnimSheets.chooseAction(look.stage, walking, anim, look.asleep, look.babyProgress, bored, talking)
     // Load this action's frames; if a species has animation at all, fall back to its idle frames for
     // actions without their own set, so it keeps the animated look instead of popping to the still render.
     val frames: List<ImageBitmap> = if (Pal.spritesOn && look.stage != Stage.EGG && look.species != Species.BLOB)
