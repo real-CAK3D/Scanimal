@@ -262,7 +262,7 @@ private fun DrawScope.drawBuddy(
         val animImg = if (frames.isNotEmpty()) frames[((t * fps).toInt().coerceAtLeast(0)) % frames.size] else sprite
         if (animImg != null) {
             val iw = animImg.width.toFloat(); val ih = animImg.height.toFloat()
-            val w = bw * 1.6f; val h = w * (ih / iw)
+            val w = bw * 0.9f; val h = w * (ih / iw)
             val l = cx - w / 2; val topY = (cy + bh * 0.52f) - h
             drawImage(animImg, dstOffset = IntOffset(l.toInt(), topY.toInt()), dstSize = IntSize(w.toInt().coerceAtLeast(1), h.toInt().coerceAtLeast(1)),
                 alpha = if (look.dead) 0.5f else 1f)

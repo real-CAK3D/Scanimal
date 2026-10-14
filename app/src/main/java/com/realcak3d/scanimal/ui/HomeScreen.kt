@@ -144,7 +144,7 @@ fun HomeScreen(repo: GameRepository, hub: SensorHub, go: (Screen) -> Unit) {
                             val d = target - wanderX
                             strolling = kotlin.math.abs(d) > 0.02f
                             // Slow, deliberate stroll (was ~0.6/s, which read as frantic/glitchy with frame art).
-                            if (kotlin.math.abs(d) > 0.01f) { facing = if (d > 0) 1f else -1f; wanderX += d.coerceIn(-1f, 1f) * (dt / 1000f) * 0.16f }
+                            if (kotlin.math.abs(d) > 0.01f) { facing = if (d > 0) 1f else -1f; wanderX += d.coerceIn(-1f, 1f) * (dt / 1000f) * 0.11f }
                             // Reached the toy? poke it (throttled; engine throttles too).
                             val toyPos = (toyXNow - 0.5f) * 1.7f
                             if (toyNow != null && kotlin.math.abs(wanderX - toyPos) < 0.1f && t - lastToy > 20000L) { lastToy = t; repo.act { n -> toyInteract(n) } }

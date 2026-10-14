@@ -30,17 +30,17 @@ object AnimSheets {
      * bubble is up. Only side-view walking mirrors with the facing flip; front/face clips don't care.
      */
     fun resolve(walking: Boolean, anim: Anim, asleep: Boolean, bored: Boolean, talking: Boolean): Shot = when {
-        asleep -> Shot(Pack.ACT, 5, 3f, false)            // sleep, curled
-        talking -> Shot(Pack.FACE, 0, 7f, false)          // mouth flap
-        anim == Anim.EAT -> Shot(Pack.ACT, 4, 6f, false)  // eat
-        anim == Anim.ANGRY -> Shot(Pack.FACE, 3, 5f, false)
-        anim == Anim.SAD || anim == Anim.SICK -> Shot(Pack.FACE, 2, 4f, false)
-        anim == Anim.SHOCK -> Shot(Pack.FACE, 4, 6f, false)       // surprised
-        anim in happy -> Shot(Pack.FACE, 1, 6f, false)           // happy
-        anim == Anim.DANCE -> Shot(Pack.ACT, 3, 7f, true)        // play
-        anim == Anim.SPARKLE || anim == Anim.CLEAN -> Shot(Pack.ACT, 1, 6f, false) // interested / found something
-        walking -> Shot(Pack.MOVE, 1, 7f, true)                  // walk, side view
-        bored -> Shot(Pack.ACT, 0, 4f, false)                    // loiter
-        else -> Shot(Pack.MOVE, 0, 4f, false)                    // idle, facing the user
+        asleep -> Shot(Pack.ACT, 5, 2f, false)            // sleep, curled
+        talking -> Shot(Pack.FACE, 0, 5f, false)          // mouth flap
+        anim == Anim.EAT -> Shot(Pack.ACT, 4, 4f, false)  // eat
+        anim == Anim.ANGRY -> Shot(Pack.FACE, 3, 3.5f, false)
+        anim == Anim.SAD || anim == Anim.SICK -> Shot(Pack.FACE, 2, 3f, false)
+        anim == Anim.SHOCK -> Shot(Pack.FACE, 4, 4f, false)       // surprised
+        anim in happy -> Shot(Pack.FACE, 1, 4f, false)           // happy
+        anim == Anim.DANCE -> Shot(Pack.ACT, 3, 5f, true)        // play
+        anim == Anim.SPARKLE || anim == Anim.CLEAN -> Shot(Pack.ACT, 1, 4f, false) // interested / found something
+        walking -> Shot(Pack.MOVE, 1, 5f, true)                  // walk, side view
+        bored -> Shot(Pack.ACT, 0, 3f, false)                    // loiter
+        else -> Shot(Pack.MOVE, 0, 3f, false)                    // idle, facing the user
     }
 }
