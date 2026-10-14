@@ -110,11 +110,9 @@ fun BuddyView(
     // Behavior state machine → which pack+row to play (idle/walk/bored/scan/eat/sleep/talk/emotions).
     val shot = AnimSheets.resolve(walking, anim, look.asleep, bored, talking)
     val frames: List<ImageBitmap> = if (Pal.spritesOn && look.stage != Stage.EGG && look.species != Species.BLOB)
-        remember(look.species, look.stage, shot.pack, shot.row, shot.pick) {
-            val all = SpriteStore.packFrames(ctx, look.species, look.stage, shot.pack.file, shot.row)
+        remember(look.species, look.stage, shot.pack, shot.row) {
+            SpriteStore.packFrames(ctx, look.species, look.stage, shot.pack.file, shot.row)
                 .ifEmpty { SpriteStore.packFrames(ctx, look.species, look.stage, "move", 0) }  // fall back to idle_front
-            // Play only the picked frames when the sheet has them all; otherwise the whole row.
-            shot.pick?.takeIf { p -> p.all { it in all.indices } }?.map { all[it] } ?: all
         } else emptyList()
     val frameFps = shot.fps
 

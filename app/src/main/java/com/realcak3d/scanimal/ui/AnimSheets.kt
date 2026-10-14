@@ -20,11 +20,8 @@ object AnimSheets {
     // ACT : 0 bored, 1 interested, 2 scan, 3 play, 4 eat, 5 sleep
     // FACE: 0 talk, 1 happy, 2 sad, 3 angry, 4 surprised, 5 sleepy
 
-    /** A chosen clip: which sheet, which row, how fast to play it, and optionally which frames (in order). */
-    data class Shot(val pack: Pack, val row: Int, val fps: Float, val mirrorable: Boolean, val pick: List<Int>? = null)
-
-    // The walk row's full 0-5 cycle doesn't loop cleanly (5 -> 0 skips a step); 3-4-5 does.
-    private val walkPick = listOf(3, 4, 5)
+    /** A chosen clip: which sheet, which row, and how fast to play it. */
+    data class Shot(val pack: Pack, val row: Int, val fps: Float, val mirrorable: Boolean)
 
     private val happy = setOf(Anim.HAPPY, Anim.LEVEL_UP, Anim.LOVE, Anim.HATCH)
 
@@ -42,7 +39,7 @@ object AnimSheets {
         anim in happy -> Shot(Pack.FACE, 1, 4f, false)           // happy
         anim == Anim.DANCE -> Shot(Pack.ACT, 3, 5f, true)        // play
         anim == Anim.SPARKLE || anim == Anim.CLEAN -> Shot(Pack.ACT, 1, 4f, false) // interested / found something
-        walking -> Shot(Pack.MOVE, 1, 5f, true, walkPick)        // walk, side view
+        walking -> Shot(Pack.MOVE, 1, 5f, true)                  // walk, side view
         bored -> Shot(Pack.ACT, 0, 3f, false)                    // loiter
         else -> Shot(Pack.MOVE, 0, 3f, false)                    // idle, facing the user
     }
