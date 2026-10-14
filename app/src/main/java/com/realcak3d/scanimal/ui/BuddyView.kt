@@ -107,15 +107,14 @@ fun BuddyView(
         bored = false
         if (idleNow) { kotlinx.coroutines.delay(25_000L); bored = true }
     }
-    // Pick an action and load its frame sequence (sheet row or loose frames); empty -> single-image fallback.
-    val action = AnimSheets.chooseAction(look.stage, walking, anim, look.asleep, look.babyProgress, bored, talking)
-    // Load this action's frames; if a species has animation at all, fall back to its idle frames for
-    // actions without their own set, so it keeps the animated look instead of popping to the still render.
+    // Behavior state machine → which pack+row to play (idle/walk/bored/scan/eat/sleep/talk/emotions).
+    val shot = AnimSheets.resolve(walking, anim, look.asleep, bored, talking)
     val frames: List<ImageBitmap> = if (Pal.spritesOn && look.stage != Stage.EGG && look.species != Species.BLOB)
-        remember(look.species, look.stage, action) {
-            SpriteStore.frames(ctx, look.species, look.stage, action)
-                .ifEmpty { if (action != "idle") SpriteStore.frames(ctx, look.species, look.stage, "idle") else emptyList() }
+        remember(look.species, look.stage, shot.pack, shot.row) {
+            SpriteStore.packFrames(ctx, look.species, look.stage, shot.pack.file, shot.row)
+                .ifEmpty { SpriteStore.packFrames(ctx, look.species, look.stage, "move", 0) }  // fall back to idle_front
         } else emptyList()
+    val frameFps = shot.fps
 
     Canvas(
         if (onTap != null) modifier.pointerInput(Unit) { detectTapGestures { tap?.invoke(it) } } else modifier
@@ -128,7 +127,7 @@ fun BuddyView(
         if (look.stage == Stage.EGG) {
             drawEgg(look, t, maxOf(eggCracks, (look.eggProgress * 6).toInt()), active, p)
         } else {
-            drawBuddy(look, t, active, p, lookAt, blink.closedAmount(now), antennaGlow, textPaint, sprite, underwater, bubbleImg, walking, frames)
+            drawBuddy(look, t, active, p, lookAt, blink.closedAmount(now), antennaGlow, textPaint, sprite, underwater, bubbleImg, walking, frames, frameFps)
         }
     }
 }
@@ -184,7 +183,7 @@ private fun DrawScope.drawEgg(look: BuddyLook, t: Float, cracks: Int, anim: Anim
 }
 
 private fun DrawScope.drawBuddy(
-    look: BuddyLook, t: Float, anim: Anim, p: Float, lookAt: Offset, blink: Float, antennaGlow: Float, textPaint: Paint, sprite: ImageBitmap? = null, underwater: Boolean = false, bubble: ImageBitmap? = null, walking: Boolean = false, frames: List<ImageBitmap> = emptyList(),
+    look: BuddyLook, t: Float, anim: Anim, p: Float, lookAt: Offset, blink: Float, antennaGlow: Float, textPaint: Paint, sprite: ImageBitmap? = null, underwater: Boolean = false, bubble: ImageBitmap? = null, walking: Boolean = false, frames: List<ImageBitmap> = emptyList(), frameFps: Float = 7f,
 ) {
     val u = min(size.width, size.height) / 100f
     val s = look.stage.scale
@@ -259,7 +258,7 @@ private fun DrawScope.drawBuddy(
     rotate(tilt, Offset(cx, ground)) {
         // Prefer a bundled frame sequence for this action; otherwise the single sprite; otherwise vector.
         // Calmer frame rates: a gentle idle, a steady (not frantic) walk.
-        val fps = if (walking) 7f else 4f
+        val fps = frameFps
         val animImg = if (frames.isNotEmpty()) frames[((t * fps).toInt().coerceAtLeast(0)) % frames.size] else sprite
         if (animImg != null) {
             val iw = animImg.width.toFloat(); val ih = animImg.height.toFloat()

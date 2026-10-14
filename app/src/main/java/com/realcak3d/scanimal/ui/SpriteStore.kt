@@ -49,59 +49,55 @@ object SpriteStore {
     }
 
     private val frameCache = HashMap<String, List<ImageBitmap>>()
+    private val sheetCache = HashMap<String, android.graphics.Bitmap?>()
 
-    /**
-     * An animation frame sequence for a species/stage/action, from
-     *   assets/sprites/anim/<species>_<stage>_<action>_1.webp, _2.webp, ...
-     * Returns the frames in order (empty if none are bundled, so callers fall back to the single sprite
-     * plus procedural motion). Actions: "idle", "walk", "eat", "happy", "sleep".
-     */
-    fun frames(ctx: Context, species: Species, stage: Stage, action: String): List<ImageBitmap> {
-        val sp = species.name.lowercase(); val st = stage.name.lowercase()
-        val key = "${sp}_${st}_$action"
-        frameCache[key]?.let { return it }
-        // 1) Preferred: slice the action's row out of the stage sheet (the modular standard).
-        val def = AnimSheets.find(stage, action)
-        if (def != null) {
-            val sheetImg = sheet(ctx, species, stage)
-            if (sheetImg != null) {
-                val sliced = sliceRow(sheetImg, def.row, def.frames)
-                if (sliced.isNotEmpty()) { frameCache[key] = sliced; return sliced }
-            }
-        }
-        // 2) Fallback: loose per-frame files <species>_<stage>_<action>_<n>.webp.
-        val list = ArrayList<ImageBitmap>()
-        for (i in 1..16) {
-            val img = load(ctx, "sprites/anim/${key}_$i.webp") ?: load(ctx, "sprites/anim/${key}_$i.png") ?: break
-            list.add(img)
-        }
-        frameCache[key] = list
-        return list
-    }
-
-    private val sheetCache = HashMap<String, ImageBitmap?>()
-
-    /** The whole per-stage animation sheet (6x5 grid), or null if none is bundled. */
-    private fun sheet(ctx: Context, species: Species, stage: Stage): ImageBitmap? {
-        val keyName = "${species.name.lowercase()}_${stage.name.lowercase()}"
+    /** The whole pack sheet (6x6 grid) as an Android bitmap, or null if that pack isn't bundled. */
+    private fun packSheet(ctx: Context, species: Species, stage: Stage, pack: String): android.graphics.Bitmap? {
+        val keyName = "${species.name.lowercase()}_${stage.name.lowercase()}_$pack"
         if (sheetCache.containsKey(keyName)) return sheetCache[keyName]
-        val img = load(ctx, "sprites/anim/$keyName.webp") ?: load(ctx, "sprites/anim/$keyName.png")
+        val img = (load(ctx, "sprites/anim/$keyName.webp") ?: load(ctx, "sprites/anim/$keyName.png"))
+            ?.let { runCatching { it.asAndroidBitmap() }.getOrNull() }
         sheetCache[keyName] = img
         return img
     }
 
-    /** Crop [count] square cells from [row] of a 6x5 grid sheet (cell = height / rows). */
-    private fun sliceRow(sheet: ImageBitmap, row: Int, count: Int): List<ImageBitmap> {
-        val src = runCatching { sheet.asAndroidBitmap() }.getOrNull() ?: return emptyList()
+    /**
+     * Frames of one action = a row from a 6x6 pack sheet. The cell size comes from the sheet
+     * (height / 6) and the frame count is auto-detected (trailing transparent cells are skipped), so the
+     * art can use different numbers of frames per row. Empty list → caller falls back to the single sprite.
+     */
+    fun packFrames(ctx: Context, species: Species, stage: Stage, pack: String, row: Int): List<ImageBitmap> {
+        val key = "${species.name.lowercase()}_${stage.name.lowercase()}_${pack}_$row"
+        frameCache[key]?.let { return it }
+        val src = packSheet(ctx, species, stage, pack)
+        if (src == null) { frameCache[key] = emptyList(); return emptyList() }
         val cell = src.height / AnimSheets.ROWS
-        if (cell <= 0) return emptyList()
-        val out = ArrayList<ImageBitmap>(count)
-        for (f in 0 until count) {
-            val x = f * cell; val y = row * cell
-            if (x + cell > src.width || y + cell > src.height) break
-            out.add(runCatching { android.graphics.Bitmap.createBitmap(src, x, y, cell, cell).asImageBitmap() }.getOrNull() ?: break)
+        val out = ArrayList<ImageBitmap>(AnimSheets.COLS)
+        if (cell > 0 && row in 0 until AnimSheets.ROWS) {
+            for (c in 0 until AnimSheets.COLS) {
+                val x = c * cell; val y = row * cell
+                if (x + cell > src.width || y + cell > src.height) break
+                if (!cellHasContent(src, x, y, cell)) break   // trailing transparent cell → end of this action
+                out.add(runCatching { android.graphics.Bitmap.createBitmap(src, x, y, cell, cell).asImageBitmap() }.getOrNull() ?: break)
+            }
         }
+        frameCache[key] = out
         return out
+    }
+
+    /** True if a cell has any meaningfully opaque pixel (coarse stride sample for speed). */
+    private fun cellHasContent(bmp: android.graphics.Bitmap, x0: Int, y0: Int, cell: Int): Boolean {
+        val step = (cell / 20).coerceAtLeast(4)
+        var y = y0
+        while (y < y0 + cell) {
+            var x = x0
+            while (x < x0 + cell) {
+                if ((bmp.getPixel(x, y) ushr 24) and 0xFF > 16) return true
+                x += step
+            }
+            y += step
+        }
+        return false
     }
 
     /** A loose effect sprite from assets/sprites/<name>.webp (e.g. "fx_bubble", "fx_bubbles"). */

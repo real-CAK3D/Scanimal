@@ -3,75 +3,44 @@ package com.realcak3d.scanimal.ui
 import com.realcak3d.scanimal.core.Anim
 import com.realcak3d.scanimal.core.Stage
 
-/** One action's position in a stage sheet: which row, and how many frames it uses (left to right). */
-data class ActionDef(val name: String, val row: Int, val frames: Int)
-
 /**
- * The fixed, canonical layout of the per-life-stage animation sheets (see docs-anim-sheets.md).
- * Every species conforms to the same 6-col x 5-row grid, so no per-species config is needed — the app
- * slices row `row` for an action and plays `frames` cells. Row order here IS the sheet row order.
+ * v2 animation: three sheets per life stage — move / act / face — each a 6x6 grid (row = action).
+ *   assets/sprites/anim/<species>_<stage>_<pack>.webp
+ * The app auto-detects how many frames a row uses (trailing cells are transparent), so frame counts can
+ * vary per sheet. A behavior state resolves to one (pack, row) to play; see [resolve].
  */
 object AnimSheets {
-    const val ROWS = 5
+    const val ROWS = 6
     const val COLS = 6
 
-    val layout: Map<Stage, List<ActionDef>> = mapOf(
-        Stage.BABY to listOf(
-            ActionDef("cry", 0, 4), ActionDef("crawl", 1, 6), ActionDef("situp", 2, 4),
-            ActionDef("stand", 3, 4), ActionDef("walk", 4, 6),
-        ),
-        Stage.CHILD to listOf(
-            ActionDef("idle", 0, 4), ActionDef("walk", 1, 6), ActionDef("jump", 2, 5),
-            ActionDef("sit", 3, 4), ActionDef("play", 4, 6),
-        ),
-        Stage.TEEN to listOf(
-            ActionDef("idle", 0, 4), ActionDef("walk", 1, 6), ActionDef("turn", 2, 5),
-            ActionDef("climb", 3, 6), ActionDef("showoff", 4, 6),
-        ),
-        Stage.ADULT to listOf(
-            ActionDef("idle", 0, 4), ActionDef("walk", 1, 6), ActionDef("jump", 2, 5),
-            ActionDef("tongue", 3, 6), ActionDef("colorshift", 4, 6),
-        ),
-        Stage.ELDER to listOf(
-            ActionDef("idle", 0, 4), ActionDef("walk", 1, 6), ActionDef("sit", 2, 4),
-            ActionDef("stretch", 3, 6), ActionDef("yawn", 4, 5),
-        ),
-    )
+    enum class Pack(val file: String) { MOVE("move"), ACT("act"), FACE("face") }
 
-    fun find(stage: Stage, action: String): ActionDef? = layout[stage]?.firstOrNull { it.name == action }
+    // Row order inside each pack (must match the generated sheets / docs-anim-v2.md).
+    // MOVE: 0 idle_front, 1 walk_side(right), 2 idle_side, 3 walk_front, 4 walk_back, 5 turn
+    // ACT : 0 bored, 1 interested, 2 scan, 3 play, 4 eat, 5 sleep
+    // FACE: 0 talk, 1 happy, 2 sad, 3 angry, 4 surprised, 5 sleepy
 
-    /** The baby grows up through its first day: cry -> crawl -> sit up -> stand -> walk. */
-    private val babyMilestones = listOf("cry", "crawl", "situp", "stand", "walk")
+    /** A chosen clip: which sheet, which row, and how fast to play it. */
+    data class Shot(val pack: Pack, val row: Int, val fps: Float, val mirrorable: Boolean)
 
-    private fun List<String>.firstPresent(vararg cands: String): String? = cands.firstOrNull { it in this }
+    private val happy = setOf(Anim.HAPPY, Anim.LEVEL_UP, Anim.LOVE, Anim.HATCH)
 
     /**
-     * The behavior state machine: pick the action name to play for the current situation, then map it to
-     * the best available row for this stage (falling back to "idle"). [babyProgress] is 0..1 through the
-     * baby stage; [bored] = idle a long time with nothing happening; [talking] = a speech bubble is up.
+     * Behavior state machine → the clip to play. [bored] = idle a long time, [talking] = a speech
+     * bubble is up. Only side-view walking mirrors with the facing flip; front/face clips don't care.
      */
-    fun chooseAction(
-        stage: Stage, walking: Boolean, anim: Anim, asleep: Boolean, babyProgress: Float,
-        bored: Boolean = false, talking: Boolean = false,
-    ): String {
-        val names = layout[stage]?.map { it.name } ?: return "idle"
-        if (stage == Stage.BABY) {
-            val idx = (babyProgress * babyMilestones.size).toInt().coerceIn(0, babyMilestones.size - 1)
-            return if (walking && idx >= 4) "walk" else babyMilestones[idx]
-        }
-        val want = when {
-            asleep -> names.firstPresent("sleep", "sit", "idle") ?: "idle"
-            anim == Anim.EAT -> names.firstPresent("eat", "idle") ?: "idle"
-            anim == Anim.HAPPY || anim == Anim.LEVEL_UP || anim == Anim.LOVE || anim == Anim.DANCE || anim == Anim.HATCH ->
-                names.firstPresent("jump", "play", "showoff") ?: "idle"
-            // Found a signal / curious → a little flourish (interested / scanning).
-            anim == Anim.SPARKLE || anim == Anim.CLEAN ->
-                names.firstPresent("tongue", "colorshift", "showoff", "climb", "play") ?: "idle"
-            walking -> "walk"
-            // Nothing going on for a while → loiter with a distinct idle move.
-            bored && !talking -> names.firstPresent("sit", "yawn", "stretch", "colorshift", "showoff") ?: "idle"
-            else -> "idle"
-        }
-        return if (want in names) want else "idle"
+    fun resolve(walking: Boolean, anim: Anim, asleep: Boolean, bored: Boolean, talking: Boolean): Shot = when {
+        asleep -> Shot(Pack.ACT, 5, 3f, false)            // sleep, curled
+        talking -> Shot(Pack.FACE, 0, 7f, false)          // mouth flap
+        anim == Anim.EAT -> Shot(Pack.ACT, 4, 6f, false)  // eat
+        anim == Anim.ANGRY -> Shot(Pack.FACE, 3, 5f, false)
+        anim == Anim.SAD || anim == Anim.SICK -> Shot(Pack.FACE, 2, 4f, false)
+        anim == Anim.SHOCK -> Shot(Pack.FACE, 4, 6f, false)       // surprised
+        anim in happy -> Shot(Pack.FACE, 1, 6f, false)           // happy
+        anim == Anim.DANCE -> Shot(Pack.ACT, 3, 7f, true)        // play
+        anim == Anim.SPARKLE || anim == Anim.CLEAN -> Shot(Pack.ACT, 1, 6f, false) // interested / found something
+        walking -> Shot(Pack.MOVE, 1, 7f, true)                  // walk, side view
+        bored -> Shot(Pack.ACT, 0, 4f, false)                    // loiter
+        else -> Shot(Pack.MOVE, 0, 4f, false)                    // idle, facing the user
     }
 }
